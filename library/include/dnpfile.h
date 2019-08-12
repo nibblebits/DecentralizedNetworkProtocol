@@ -22,9 +22,13 @@ namespace Dnp
         // The version of this Dnp file
         DNP_FILE_FORMAT_VERSION version;
         // Total nodes available in the system 
-        unsigned long total_nodes;
+        unsigned long total_cells;
         // The absolute position of the first node
-        NODE_POSITION first_node;
+        CELL_POSITION first_cell;
+
+        // The absolute position of the most recently created node
+        CELL_POSITION last_cell;
+
     };
 
     // Represents 
@@ -34,13 +38,14 @@ namespace Dnp
         unsigned int total_sectors;
     };
 
-    struct node_header
+    struct cell_header
     {
-        NODE_ID id;
+        CELL_ID id;
         unsigned long size;
-        NODE_FLAGS flags;
-        NODE_DATA_POSITION data_pos;
-        NODE_POSITION next_node_pos;
+        CELL_FLAGS flags;
+        CELL_DATA_POSITION data_pos;
+        CELL_POSITION prev_cell_pos;
+        CELL_POSITION next_cell_pos;
     };
 
 
@@ -51,23 +56,34 @@ namespace Dnp
             virtual ~DnpFile();
             void openFile(std::string filename);
             std::string getNodeFilename();
-            void createNode(NODE_ID node_id, unsigned long size, const char* data);
-            void loadNode(NODE_ID node_id);
+            void createCell(CELL_ID cell_id, unsigned long size, const char* data);
+            bool loadCell(CELL_ID cell_id, struct cell_header* cell_header, char** data);
         
-
         private:
-            void createNodeTable();
+            void createCellTable();
             void loadFile(std::string filename);
             void setupFile(std::string filename);
             void initFileHeader(struct file_header* header);
-            void initNodeHeader(struct node_header* header);
+            void initNodeHeader(struct cell_header* header);
+
+
+            /**
+             * Writes the current file header in memory to disk
+             */
+            void writeFileHeader();
 
             /**
              * Returns a free position in the DnpFile where you can safely write the provided size
              * If there is no room then zero is returned.
              */
             unsigned long getFreePositionForData(unsigned long size);
+             /**
+             * Returns a free position in the DnpFile where you can safely write the provided size
+             * If there is no room then an exception is thrown
+             */
+            unsigned long getFreePositionForDataOrThrow(unsigned long size);
 
+    
             /**
              * Marks the data as non free in the data table
              */
@@ -75,6 +91,7 @@ namespace Dnp
         protected:
             std::fstream node_file;
             std::string node_filename;
+            struct file_header loaded_file_header;
     };
 };
 

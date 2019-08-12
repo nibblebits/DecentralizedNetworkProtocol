@@ -1,13 +1,15 @@
 #include "dnpfile.h"
 #include "types.h"
 #include "memory.h"
+#include <stddef.h>
+#include <stdio.h>
 #include <iostream>
 #include <exception>
 #include <experimental/filesystem>
 using namespace Dnp;
 DnpFile::DnpFile()
 {
-
+    memset(&this->loaded_file_header, 0, sizeof(this->loaded_file_header));
 }
 
 DnpFile::~DnpFile()
@@ -37,6 +39,9 @@ void DnpFile::loadFile(std::string filename)
 {
     // Open the file
     this->node_file.open(filename, std::fstream::in | std::fstream::binary | std::fstream::out);
+
+    // Load the file header
+    this->node_file.read((char*) &this->loaded_file_header, sizeof(this->loaded_file_header));
 }
 
 void DnpFile::setupFile(std::string filename)
@@ -59,7 +64,7 @@ void DnpFile::setupFile(std::string filename)
     // Let's now write the bytes to represent the sectors
     for (int i = 0; i < table_header.total_sectors; i++)
     {
-        tmp_file.put(DNP_SECTOR_TAKEN);
+        tmp_file.put(DNP_SECTOR_FREE);
     }
 
     tmp_file.close();
@@ -70,6 +75,12 @@ std::string DnpFile::getNodeFilename()
     return this->node_filename;
 }
 
+void DnpFile::writeFileHeader()
+{
+    this->node_file.seekp(0, this->node_file.beg);
+    this->node_file.write((const char*) &this->loaded_file_header, sizeof(this->loaded_file_header));
+}
+
 void DnpFile::initFileHeader(struct file_header* header)
 {
     memset(header, 0, sizeof(struct file_header));
@@ -77,32 +88,59 @@ void DnpFile::initFileHeader(struct file_header* header)
     header->version = CURRENT_DNP_FILE_FORMAT_VERSION;
 }
 
-void DnpFile::initNodeHeader(struct node_header* header)
+void DnpFile::initNodeHeader(struct cell_header* header)
 {
-    memset(header, 0, sizeof(struct file_header));
+    memset(header, 0x00, sizeof(struct file_header));
 }
 
 
-void DnpFile::createNode(NODE_ID node_id, unsigned long size, const char* data)
+void DnpFile::createCell(CELL_ID cell_id, unsigned long size, const char* data)
 {
-    unsigned long pos = this->getFreePositionForData(size);
-    if (pos == 0)
-    {
-        throw std::logic_error("Out of space!");
-    }
+    // First check we have enough room for the data and the cell
+    this->getFreePositionForDataOrThrow(size+sizeof(struct cell_header));
 
-    this->node_file.seekp(pos, this->node_file.beg);
+    // Get a valid position for the data
+    unsigned long data_pos = this->getFreePositionForDataOrThrow(size);
 
-    struct node_header node_header;
-    initNodeHeader(&node_header);
+    // Let's first write the data
+    this->node_file.seekp(data_pos, this->node_file.beg);
+    this->node_file.write(data, size);
+    this->markDataTaken(data_pos, size);
 
-    node_header.id = node_id;
-    node_header.size = size;
-    this->node_file.write((const char*)&node_header, sizeof(struct node_header));
+    unsigned long cell_pos = this->getFreePositionForDataOrThrow(sizeof(struct cell_header));
+
+    // Now create and write the cell header
+    struct cell_header cell_header;
+    initNodeHeader(&cell_header);
+
+    cell_header.id = cell_id;
+    cell_header.size = size;
+    cell_header.prev_cell_pos = this->loaded_file_header.last_cell;
+    cell_header.data_pos = data_pos;
+    this->node_file.seekp(cell_pos, this->node_file.beg);
+    this->node_file.write((const char*)&cell_header, sizeof(struct cell_header));
 
     // Mark this node as taken
-    this->markDataTaken(pos, size);
+    this->markDataTaken(cell_pos, size);
+    
+    // Is this the first node?
+    if (this->loaded_file_header.first_cell == 0)
+    {
+        this->loaded_file_header.first_cell = cell_pos;
+    }
+    else
+    {
+        // This was not the first node so let's adjust the previous nodes next position to point to us
+        this->node_file.seekp(this->loaded_file_header.last_cell+offsetof(struct cell_header, next_cell_pos), this->node_file.beg);
+        this->node_file.write((const char*) &cell_pos, sizeof(cell_pos));
+    }
+    
+    // Update the file header
+    this->loaded_file_header.last_cell = cell_pos;
+    this->loaded_file_header.total_cells++;
 
+    // Update the header on disk
+    this->writeFileHeader();
 }
 
 unsigned long DnpFile::getFreePositionForData(unsigned long size)
@@ -151,6 +189,15 @@ unsigned long DnpFile::getFreePositionForData(unsigned long size)
 }
 
 
+unsigned long DnpFile::getFreePositionForDataOrThrow(unsigned long size)
+{
+    unsigned long pos = this->getFreePositionForData(size);
+    if (pos == 0)
+        throw std::logic_error("Out of space");
+
+    return pos;
+}
+
 void DnpFile::markDataTaken(unsigned long pos, unsigned long size)
 {
     // Position us just after the file header, so that we point at the data table
@@ -180,11 +227,36 @@ void DnpFile::markDataTaken(unsigned long pos, unsigned long size)
     this->node_file.seekp(sec_no_pos, this->node_file.beg);
     for (int i = 0; i < total_sectors; i++)
     {    
-        this->node_file.put(0xaa);
+        this->node_file.put(DNP_SECTOR_TAKEN);
     }
 }
 
-void DnpFile::loadNode(unsigned long node_id)
+bool DnpFile::loadCell(CELL_ID cell_id, struct cell_header* cell_header, char** data)
 {
+    *data = 0;
+
+    // Read in the cell header
+    struct cell_header tmp_header;
+    unsigned long current_pos = this->loaded_file_header.first_cell;
+    while(current_pos != 0)
+    {
+        this->node_file.seekp(current_pos, this->node_file.beg);
+        // Read in the cell data
+        this->node_file.read((char*) &tmp_header, sizeof(tmp_header));
+        if (tmp_header.id == cell_id)
+        {
+            // We found it copy over the header into the returning header
+            *data = new char[tmp_header.size];
+            this->node_file.seekp(tmp_header.data_pos, this->node_file.beg);
+            this->node_file.read(*data, tmp_header.size);
+            memcpy(cell_header, &tmp_header, sizeof(tmp_header));
+            return true;
+        }
+
+        current_pos = tmp_header.next_cell_pos;
+    }
+
+    return false;
+
 
 }

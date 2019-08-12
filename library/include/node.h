@@ -26,11 +26,11 @@ namespace Dnp
         public:
             Node();
             virtual ~Node();
-            void setId(NODE_ID id);
-            NODE_ID getId();
+            void setId(CELL_ID id);
+            CELL_ID getId();
         protected:
             // The numeric id of this node
-            NODE_ID id;
+            CELL_ID id;
     };
 }  
 #endif
