@@ -12,8 +12,8 @@ int main(int argc, char** argv)
     Dnp::DnpFile loader;
     loader.openFile("./test.dnp");
     const char* data = "hello";
-  // loader.createCell(1, strlen(data), data);
-    //loader.createCell(2, strlen(data), data);
+   loader.createCell(1, strlen(data), data);
+   // loader.createCell(2, strlen(data), data);
     
 
 

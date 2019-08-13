@@ -64,7 +64,7 @@ namespace Dnp
             void loadFile(std::string filename);
             void setupFile(std::string filename);
             void initFileHeader(struct file_header* header);
-            void initNodeHeader(struct cell_header* header);
+            void initCellHeader(struct cell_header* header);
 
 
             /**

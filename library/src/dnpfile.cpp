@@ -88,9 +88,9 @@ void DnpFile::initFileHeader(struct file_header* header)
     header->version = CURRENT_DNP_FILE_FORMAT_VERSION;
 }
 
-void DnpFile::initNodeHeader(struct cell_header* header)
+void DnpFile::initCellHeader(struct cell_header* header)
 {
-    memset(header, 0x00, sizeof(struct file_header));
+    memset(header, 0x00, sizeof(struct cell_header));
 }
 
 
@@ -111,7 +111,7 @@ void DnpFile::createCell(CELL_ID cell_id, unsigned long size, const char* data)
 
     // Now create and write the cell header
     struct cell_header cell_header;
-    initNodeHeader(&cell_header);
+    initCellHeader(&cell_header);
 
     cell_header.id = cell_id;
     cell_header.size = size;
