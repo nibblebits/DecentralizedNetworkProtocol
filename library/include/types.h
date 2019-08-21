@@ -8,6 +8,7 @@ typedef unsigned char CELL_FLAGS;
 typedef unsigned long NODE_DATA_TABLE_OFFSET;
 typedef unsigned long CELL_DATA_POSITION;
 typedef unsigned long CELL_POSITION;
+typedef unsigned long IP_BLOCK_POSITION;
 
 #define DNP_SECTOR_FREE 0x00
 #define DNP_SECTOR_TAKEN 0xff
