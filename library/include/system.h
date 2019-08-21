@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <memory>
 #include "network.h"
+#include "dnpfile.h"
 namespace Dnp
 {
     class System
@@ -33,7 +34,7 @@ namespace Dnp
         void host();
         
     private:
-        std::unique_ptr<Network> network;
+
     };
 };
 #endif

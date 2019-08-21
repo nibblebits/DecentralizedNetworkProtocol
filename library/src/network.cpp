@@ -16,6 +16,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 #include "network.h"
+#include "dnpfile.h"
+
 #include <iostream>
 
 #include <sstream>
@@ -34,8 +36,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 using namespace Dnp;
 Network::Network()
 {
+
+}
+Network::Network(DnpFile* dnp_file)
+{
     this->is_binded = false;
     this->our_ip = "unknown ip";
+    this->dnp_file = dnp_file;
 }
 
 Network::~Network()
@@ -92,31 +99,6 @@ void Network::network_general_thread_run()
             scan();
         }
 
-        // Write the new file
-        if (!this->active_ips.empty())
-        {
-            std::ofstream ip_file("./ips.txt");
-
-            if (ip_file.is_open())
-            {
-                for (std::string s : this->active_ips)
-                {
-                    ip_file << s << std::endl;
-                }
-
-
-                for (std::string s : this->known_ips)
-                {
-                    // Only add the IP to the file if its not already added. If its in the active_ips its been added now
-                    if (std::find(this->active_ips.begin(), this->active_ips.end(), s) == this->active_ips.end())
-                    {
-                        ip_file << s << std::endl;
-                    }
-                }
-                ip_file.close();
-            }
-        }
-
         // Ping the network to keep all ports alive
         ping();
         sleep(5);
@@ -125,21 +107,18 @@ void Network::network_general_thread_run()
 
 void Network::begin()
 {
+    // Load the IP addresses
+    std::string ip_str;
+    unsigned long current_index = 0;
+    while (this->dnp_file->getNextIp(ip_str, &current_index))
+    {
+        this->known_ips.push_back(ip_str);
+    }
+
     this->network_recv_thread = std::thread(&Network::network_recv_thread_operation, this);
     this->network_general_thread = std::thread(&Network::network_general_thread_operation, this);
 }
 
-void Network::useIPFile(std::string filename)
-{
-    std::string line;
-    std::ifstream infile(filename.c_str(), std::ifstream::in);
-    while (std::getline(infile, line))
-    {
-        std::istringstream iss(line);
-        iss >> line;
-        this->known_ips.push_back(line);
-    }
-}
 
 int Network::get_valid_socket(struct sockaddr_in *servaddr)
 {

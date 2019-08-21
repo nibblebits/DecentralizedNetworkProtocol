@@ -255,7 +255,7 @@ unsigned long DnpFile::createIpBlock()
     // We have no IP block this is our very first ip address lets add the thing
     struct ip_block ip_block;
     initIpBlock(&ip_block);
-    memset(&ip_block, 0xF4, sizeof(ip_block));
+    memset(&ip_block, 0x00, sizeof(ip_block));
     unsigned long pos = this->getFreePositionForDataOrThrow(sizeof(ip_block));
     // Great we got our position for our ip address block let's write our ip to our block and write the thing to disk
     ip_block.ip_block_header.total_ips = 0;
@@ -391,6 +391,7 @@ bool DnpFile::getNextIp(std::string& ip_str, unsigned long* current_index, unsig
         if (ip_block.ip_block_header.next_block_pos != 0)
         {
             std::cout << "going to next block: " << ip_block.ip_block_header.next_block_pos << std::endl;
+            *current_index = 0;
             return getNextIp(ip_str, current_index, ip_block.ip_block_header.next_block_pos);
         }
         return false;

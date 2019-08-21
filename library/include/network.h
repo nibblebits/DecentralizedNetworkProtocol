@@ -35,6 +35,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 namespace Dnp
 {
+    class DnpFile;
+
     typedef unsigned short PACKET_TYPE;
     enum
     {
@@ -91,10 +93,10 @@ namespace Dnp
     {
     public:
         Network();
+        Network(DnpFile* dnp_file);
         virtual ~Network();
 
         void begin();
-        void useIPFile(std::string filename);
         void scan();
         void bindMyself();
 
@@ -131,6 +133,9 @@ namespace Dnp
         struct sockaddr_in our_address;
         // Our remote ip address, blank until we receive a hello packet
         std::string our_ip;
+
+        // Our DNP file where we will be storing data to
+        DnpFile* dnp_file;
 
         std::queue<struct message> message_queue;
         std::mutex message_queue_lock;
