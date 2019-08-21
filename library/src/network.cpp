@@ -200,17 +200,7 @@ void Network::sendPacket(std::string ip, struct Packet *packet)
     }
 }
 
-void Network::sendMessage(std::string message)
-{
-    struct Packet packet;
-    packet.type = PACKET_TYPE_MESSAGE;
-    std::string sender_ip = our_ip;
-    memset(packet.message_packet.message, 0, MAX_MESSAGE_SIZE);
-    memset(packet.message_packet.sender_ip, 0, INET_ADDRSTRLEN);
-    strncpy(packet.message_packet.sender_ip, sender_ip.c_str(), sender_ip.size());
-    strncpy(packet.message_packet.message, message.c_str(), message.size());
-    broadcast(&packet);
-}
+
 
 void Network::broadcast(struct Packet *packet)
 {
@@ -227,7 +217,8 @@ void Network::addActiveIp(std::string ip)
 
     if (std::find(this->active_ips.begin(), this->active_ips.end(), ip) == this->active_ips.end())
     {
-        std::cout << "Adding active ip: " << ip << std::endl;
+        // Let's save this active ip
+        this->dnp_file->addIp(ip);
         this->active_ips.push_back(ip);
         struct Packet packet;
         createActiveIpPacket(ip, &packet);
@@ -270,9 +261,6 @@ void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Pac
         handleActiveIpPacket(client_address, packet);
         break;
 
-    case PACKET_TYPE_MESSAGE:
-        handleMessagePacket(client_address, packet);
-        break;
     case PACKET_TYPE_PING:
         // Do nothing ping recieved used to keep nat open
         break;
@@ -307,21 +295,6 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct 
     addActiveIp(their_ip);
 }
 
-void Network::handleMessagePacket(struct sockaddr_in client_address, struct Packet *packet)
-{
-    struct MessagePacket *msg_packet = &packet->message_packet;
-    struct message msg;
-
-
-    std::string sender_ip_str = std::string(msg_packet->sender_ip, strnlen(msg_packet->sender_ip, INET_ADDRSTRLEN));
-
-    msg.from = sender_ip_str;
-    msg.message = std::string(msg_packet->message, strnlen(msg_packet->message, MAX_MESSAGE_SIZE));
-
-    // std::lock_guard<std::mutex> lock(this->message_queue_lock);
-    //this->message_queue.push(msg);
-    std::cout << msg.from << ": " << msg_packet->message << std::endl;
-}
 
 void Network::handleHelloRespondPacket(struct sockaddr_in client_address, struct Packet *packet)
 {

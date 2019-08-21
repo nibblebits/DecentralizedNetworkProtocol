@@ -36,7 +36,6 @@ void DnpFile::openFile(std::string filename)
     }
 }
 
-
 void DnpFile::loadFile(std::string filename)
 {
     // Open the file
@@ -69,14 +68,12 @@ void DnpFile::setupFileAndOpen(std::string filename)
         tmp_file.put(DNP_SECTOR_FREE);
     }
 
-    
     tmp_file.close();
 
     // Ok load the file again so its open for reading and writing and then write the first IP block, not entirely ideal could be better..
     loadFile(filename);
     this->createFirstIPBlock();
     this->writeFileHeader();
-
 }
 
 std::string DnpFile::getNodeFilename()
@@ -241,12 +238,11 @@ void DnpFile::markDataTaken(unsigned long pos, unsigned long size)
     }
 }
 
-
 struct ip_block_header DnpFile::readIpBlockHeader(unsigned long pos)
 {
     struct ip_block_header ip_block_header;
     this->node_file.seekp(pos);
-    this->node_file.read((char*) &ip_block_header, sizeof(ip_block_header));
+    this->node_file.read((char *)&ip_block_header, sizeof(ip_block_header));
     return ip_block_header;
 }
 
@@ -260,7 +256,7 @@ unsigned long DnpFile::createIpBlock()
     // Great we got our position for our ip address block let's write our ip to our block and write the thing to disk
     ip_block.ip_block_header.total_ips = 0;
     this->node_file.seekp(pos, this->node_file.beg);
-    this->node_file.write((const char*) &ip_block, sizeof(ip_block));
+    this->node_file.write((const char *)&ip_block, sizeof(ip_block));
     // Mark that data as taken, don't want it being overwritten
     markDataTaken(pos, sizeof(ip_block));
     return pos;
@@ -296,7 +292,7 @@ bool DnpFile::isIpBlockFull(unsigned long pos)
 
 void DnpFile::writeIpToIpBlock(unsigned long pos, std::string ip)
 {
-    // Let's make sure we have enough room 
+    // Let's make sure we have enough room
     if (isIpBlockFull(pos))
     {
         // We are out of bounds! reject this!
@@ -306,7 +302,7 @@ void DnpFile::writeIpToIpBlock(unsigned long pos, std::string ip)
     // Let's read in that ip block header so we have an idea of where to put this ip address in the file
     struct ip_block_header ip_block_header = readIpBlockHeader(pos);
     // Convert our string ip address into a 4 byte integer representing a valid Ipv4 address
-    struct in_addr ip_address;	/* Internet address Ipv4.  */
+    struct in_addr ip_address; /* Internet address Ipv4.  */
     inet_pton(AF_INET, ip.c_str(), &ip_address);
 
     // Where we are writing our ip address
@@ -315,7 +311,7 @@ void DnpFile::writeIpToIpBlock(unsigned long pos, std::string ip)
     unsigned long ip_pos_abs = pos + ip_rel_pos;
 
     this->node_file.seekp(ip_pos_abs, this->node_file.beg);
-    this->node_file.write((const char*) &ip_address, sizeof(ip_address));
+    this->node_file.write((const char *)&ip_address, sizeof(ip_address));
 
     // Let's update the ip block header
     ip_block_header.total_ips++;
@@ -324,11 +320,10 @@ void DnpFile::writeIpToIpBlock(unsigned long pos, std::string ip)
     this->writeIpBlockHeaderToDisk(pos, ip_block_header);
 }
 
-
-void DnpFile::writeIpBlockHeaderToDisk(unsigned long pos, struct ip_block_header& header)
+void DnpFile::writeIpBlockHeaderToDisk(unsigned long pos, struct ip_block_header &header)
 {
     this->node_file.seekp(pos, this->node_file.beg);
-    this->node_file.write((const char*) &header, sizeof(struct ip_block_header));
+    this->node_file.write((const char *)&header, sizeof(struct ip_block_header));
 }
 
 void DnpFile::createNewIpBlockIfNeeded()
@@ -339,8 +334,26 @@ void DnpFile::createNewIpBlockIfNeeded()
         this->createNewCurrentIpBlock();
     }
 }
+
+bool DnpFile::doesIpExist(std::string ip)
+{
+    std::string ip_str;
+    unsigned long current_index = 0;
+    while (getNextIp(ip_str, &current_index))
+    {
+        if (ip_str == ip)
+            return false;
+    }
+
+    return true;
+}
+
 void DnpFile::addIp(std::string ip)
 {
+    // Ip exists then we will not add it twice
+    if (doesIpExist(ip))
+        return;
+
     // Create a new ip block if our current block is full
     createNewIpBlockIfNeeded();
 
@@ -356,17 +369,17 @@ void DnpFile::createNewCurrentIpBlock()
        with the new one in the DNP file header. Think Linked List!
     */
 
-   unsigned long current_ip_block_pos = this->loaded_file_header.current_ip_block_position;
-   unsigned long new_ip_block_pos = this->createIpBlock();
-   // This points to the linked list next variable that points to our new IP block
-   unsigned long pos_to_next_block_pos_var = offsetof(struct ip_block_header, next_block_pos) + current_ip_block_pos;
-   // Great we got a new ip block created, let's now change the current ip block's pointer to point to the new ip block
-   this->node_file.seekp(pos_to_next_block_pos_var, this->node_file.beg);
-   this->node_file.write((char*) &new_ip_block_pos, sizeof(new_ip_block_pos));
+    unsigned long current_ip_block_pos = this->loaded_file_header.current_ip_block_position;
+    unsigned long new_ip_block_pos = this->createIpBlock();
+    // This points to the linked list next variable that points to our new IP block
+    unsigned long pos_to_next_block_pos_var = offsetof(struct ip_block_header, next_block_pos) + current_ip_block_pos;
+    // Great we got a new ip block created, let's now change the current ip block's pointer to point to the new ip block
+    this->node_file.seekp(pos_to_next_block_pos_var, this->node_file.beg);
+    this->node_file.write((char *)&new_ip_block_pos, sizeof(new_ip_block_pos));
 
-   // Finally we adjust the DNP file header and attach the current IP block
-   this->loaded_file_header.current_ip_block_position = new_ip_block_pos;
-   this->writeFileHeader();
+    // Finally we adjust the DNP file header and attach the current IP block
+    this->loaded_file_header.current_ip_block_position = new_ip_block_pos;
+    this->writeFileHeader();
 }
 
 unsigned long DnpFile::getCurrentIpBlock()
@@ -374,7 +387,7 @@ unsigned long DnpFile::getCurrentIpBlock()
     return this->loaded_file_header.current_ip_block_position;
 }
 
-bool DnpFile::getNextIp(std::string& ip_str, unsigned long* current_index, unsigned long ip_block_pos)
+bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsigned long ip_block_pos)
 {
     // No IP block position provided then default to the first block!
     if (ip_block_pos == -1)
@@ -383,7 +396,7 @@ bool DnpFile::getNextIp(std::string& ip_str, unsigned long* current_index, unsig
     }
     struct ip_block ip_block;
     this->node_file.seekp(ip_block_pos, this->node_file.beg);
-    this->node_file.read((char*) &ip_block, sizeof(ip_block));
+    this->node_file.read((char *)&ip_block, sizeof(ip_block));
 
     // Current index out of bounds, then we are done here if there is no next block
     if (*current_index >= ip_block.ip_block_header.total_ips)
@@ -397,11 +410,10 @@ bool DnpFile::getNextIp(std::string& ip_str, unsigned long* current_index, unsig
         return false;
     }
 
-
     struct in_addr ip_int;
     unsigned long ip_pos = ip_block_pos + offsetof(struct ip_block, ip) + (*current_index * sizeof(struct in_addr));
     this->node_file.seekp(ip_pos);
-    this->node_file.read((char*) &ip_int, sizeof(ip_int));
+    this->node_file.read((char *)&ip_int, sizeof(ip_int));
 
     // Convert that IP address back to a string
     char ip_str_buf[INET_ADDRSTRLEN];

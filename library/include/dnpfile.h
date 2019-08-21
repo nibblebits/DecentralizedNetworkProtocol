@@ -80,6 +80,7 @@ public:
     void openFile(std::string filename);
     std::string getNodeFilename();
     void createCell(CELL_ID cell_id, unsigned long size, const char *data);
+    bool doesIpExist(std::string ip);
     void addIp(std::string ip);
     bool getNextIp(std::string& ip_str, unsigned long* current_index, unsigned long ip_block_pos=-1);
     bool loadCell(CELL_ID cell_id, struct cell_header *cell_header, char **data);

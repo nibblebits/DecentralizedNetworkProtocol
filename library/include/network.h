@@ -43,7 +43,6 @@ namespace Dnp
         PACKET_TYPE_INITIAL_HELLO,
         PACKET_TYPE_RESPOND_HELLO,
         PACKET_TYPE_ACTIVE_IP,
-        PACKET_TYPE_MESSAGE,
         PACKET_TYPE_PING
     };
 
@@ -64,14 +63,6 @@ namespace Dnp
     };
 
 
-    struct MessagePacket
-    {
-        // The sender IP
-        char sender_ip[INET_ADDRSTRLEN];
-        char message[MAX_MESSAGE_SIZE];
-    };
-
-
     struct Packet
     {
         PACKET_TYPE type;
@@ -79,15 +70,9 @@ namespace Dnp
         {
             struct HelloPacket hello_packet;
             struct ActiveIpPacket active_ip_packet;
-            struct MessagePacket message_packet;
         };
     };
 
-    struct message
-    {
-        std::string from;
-        std::string message;
-    };
 
     class Network
     {
@@ -102,7 +87,6 @@ namespace Dnp
 
         void sendPacket(std::string ip, struct Packet* packet);
         void broadcast(struct Packet* packet);
-        void sendMessage(std::string message);
 
     private:
         void ping();
@@ -112,7 +96,6 @@ namespace Dnp
         void handleInitalHelloPacket(struct sockaddr_in client_address, struct Packet* packet);
         void handleHelloRespondPacket(struct sockaddr_in client_address, struct Packet* packet);
         void handleActiveIpPacket(struct sockaddr_in client_address, struct Packet* packet);
-        void handleMessagePacket(struct sockaddr_in client_address, struct Packet* packet);
 
         void createActiveIpPacket(std::string ip, struct Packet* packet);
         int get_valid_socket(struct sockaddr_in* servaddr);
@@ -137,8 +120,6 @@ namespace Dnp
         // Our DNP file where we will be storing data to
         DnpFile* dnp_file;
 
-        std::queue<struct message> message_queue;
-        std::mutex message_queue_lock;
     };
 }
 
