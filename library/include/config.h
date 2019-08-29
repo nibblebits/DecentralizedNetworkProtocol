@@ -6,6 +6,10 @@
 #define DNP_SIGNATURE "DNP"
 #define DNP_SECTOR_SIZE 512
 #define DNP_TOTAL_SECTORS_PER_TABLE 512
+#define DOMAIN_SERVER_PATH     "/tmp/dnp_server"
+#define DOMAIN_SERVER_BUFFER_LENGTH    250
 
+// Compiled in for now but in the future best to calculate this
+#define MAX_TOTAL_THREADS 8
 
 #endif

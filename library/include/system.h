@@ -24,6 +24,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <memory>
 #include "network.h"
 #include "dnpfile.h"
+#include "types.h"
+#include "cell.h"
+#include "threadpool.h"
+#include "clientdomainsocket.h"
+#include "serverdomainsocket.h"
+
 namespace Dnp
 {
     class System
@@ -32,8 +38,32 @@ namespace Dnp
         System();
         virtual ~System();
         void host();
+        void use();
+        /**
+         * Pings the Dnp domain server to see if its active
+         */
+        void test_ping();
+
+        /**
+         * Processes this DNP system instance
+         */
+        void process();
         
+        /**
+         * Creates a data cell on the DNP Network
+         */
+        Cell createCell();
     private:
+
+        void accept_socket_thread();
+        DnpFile* dnp_file;
+        Network* network;
+        ThreadPool* thread_pool;
+
+        // Below is used if this Dnp instance is used as a client and not a server
+        void client_init_connect();
+        ClientDomainSocket* client_socket;
+        std::unique_ptr<ServerDomainSocket> server_socket;
 
     };
 };

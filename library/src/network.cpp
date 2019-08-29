@@ -152,6 +152,7 @@ int Network::get_valid_socket(struct sockaddr_in *servaddr)
     return s;
 }
 
+
 void Network::scan()
 {
     for (std::string ip : this->known_ips)

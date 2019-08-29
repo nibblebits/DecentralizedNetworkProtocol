@@ -15,25 +15,29 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
-#include "node.h"
-
-using namespace Dnp;
-Node::Node()
+#ifndef CELL_H
+#define CELL_H
+#include "types.h"
+namespace Dnp
 {
+    class System;
+    class Cell
+    {
+        public:
+            Cell(CELL_ID id, Dnp::System* system);
+            virtual ~Cell();
+            
+            void setData(char* data, unsigned long size);
+            CELL_ID getId();
 
-}
-
-Node::~Node()
-{
-    
-}
-
-void Node::setId(unsigned long id)
-{
-    this->id = id;
-}
-
-unsigned long Node::getId()
-{
-    return this->id;
-}
+            void publish();
+        protected:
+            // The numeric id of this node
+            CELL_ID id;
+            char* data;
+            unsigned long data_size;
+        private:
+            Dnp::System* system;
+    };
+}  
+#endif
