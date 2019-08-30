@@ -1,5 +1,7 @@
 #include "serverclientdomainsocket.h"
 #include "config.h"
+#include "cell.h"
+#include "system.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,17 +12,13 @@
 #include <iostream>
 
 using namespace Dnp;
-ServerClientDomainSocket::ServerClientDomainSocket(int client_socket) : DomainSocket()
+ServerClientDomainSocket::ServerClientDomainSocket(System* system, int client_socket) : DomainSocket(system, client_socket)
 {
-    this->_socket = client_socket;
 }
 
 ServerClientDomainSocket::~ServerClientDomainSocket()
 {
-    if (this->_socket != -1)
-    {
-        close(this->_socket);
-    }
+    
 }
 
 void ServerClientDomainSocket::connectToServer()
@@ -86,6 +84,25 @@ void ServerClientDomainSocket::processPingPacket(struct DomainPacket* packet)
     this->sendPacket(packet);
 }
 
+void ServerClientDomainSocket::processCellPacket(struct DomainPacket* packet)
+{
+    struct DomainCellPublishPacket* publish_packet = &packet->publish_packet;
+    // We need to allocate some memory for this packet payload
+//  std::unique_ptr<unsigned char[]> payload(new unsigned char[publish_packet->cell_data_size]());
+
+    char* payload = new char[publish_packet->cell_data_size];
+    // We need to read the data of cell_data_size as this is the cell packet payload
+    read_blocked(payload, publish_packet->cell_data_size);
+
+    // Reconstruct the cell
+    Cell cell(publish_packet->cell_id, this->getSystem());
+    cell.setData(payload, publish_packet->cell_data_size);
+    // Now we have everything we need let's add this cell to the network for later processing
+    this->getSystem()->addCellForProcessing(cell);
+    
+
+}
+
 void ServerClientDomainSocket::processIncomingDomainPacket(struct DomainPacket* packet)
 {
     // Ok we have an incoming packet let's process it
@@ -93,6 +110,10 @@ void ServerClientDomainSocket::processIncomingDomainPacket(struct DomainPacket* 
     {
         case DOMAIN_PACKET_TYPE_PING:
             this->processPingPacket(packet);
+        break;
+
+        case DOMAIN_PACKET_TYPE_CELL_PUBLISH:
+            this->processCellPacket(packet);
         break;
     }
 }

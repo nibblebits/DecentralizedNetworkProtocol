@@ -15,11 +15,11 @@ int main()
   dnp.test_ping();
 
   std::cout << "testing" << std::endl;
-/* 
+
   Cell cell = dnp.createCell();
-  cell.setData("Hello world", 4);
+  cell.setData("testing 4444", 4);
   cell.publish();
-*/
+
   while(1)
   {
     dnp.process();

@@ -10,7 +10,7 @@
 #include <sys/un.h>
 
 using namespace Dnp;
-ServerDomainSocket::ServerDomainSocket() : DomainSocket()
+ServerDomainSocket::ServerDomainSocket(System* system) : DomainSocket(system)
 {
 
 }
@@ -75,7 +75,7 @@ ServerClientDomainSocket *ServerDomainSocket::acceptSocket()
         throw std::logic_error("Accept error");
     }
 
-    ServerClientDomainSocket* socket = new ServerClientDomainSocket(client_socket);
+    ServerClientDomainSocket* socket = new ServerClientDomainSocket(this->getSystem(), client_socket);
 
     // Let's spawn a new thread for this socket!
     this->threads.push_back(std::thread(&ServerDomainSocket::socket_thread, this, socket));

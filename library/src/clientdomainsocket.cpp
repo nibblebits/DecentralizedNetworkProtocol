@@ -1,5 +1,6 @@
 #include "clientdomainsocket.h"
 #include "config.h"
+#include "cell.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,21 +11,17 @@
 
 using namespace Dnp;
 
-ClientDomainSocket::ClientDomainSocket()
+ClientDomainSocket::ClientDomainSocket(System* system) : DomainSocket(system)
 {
 }
 
-ClientDomainSocket::ClientDomainSocket(int client_socket) : DomainSocket()
+ClientDomainSocket::ClientDomainSocket(System* system, int client_socket) : DomainSocket(system, client_socket)
 {
-    this->_socket = client_socket;
 }
 
 ClientDomainSocket::~ClientDomainSocket()
 {
-    if (this->_socket != -1)
-    {
-        close(this->_socket);
-    }
+  
 }
 
 void ClientDomainSocket::sendPing()
@@ -53,6 +50,26 @@ void ClientDomainSocket::sendPing()
 void ClientDomainSocket::sendPacket(struct DomainPacket *packet)
 {
     int rc = send(this->_socket, packet, sizeof(struct DomainPacket), 0);
+    if (rc < 0)
+    {
+        throw std::logic_error("Failed to send packet rc= " + std::to_string(rc));
+    }
+}
+
+void ClientDomainSocket::sendCell(Cell* cell)
+{
+    struct DomainPacket packet;
+    packet.type = DOMAIN_PACKET_TYPE_CELL_PUBLISH;
+    packet.publish_packet.cell_id = cell->getId();
+    packet.publish_packet.cell_data_size = cell->getDataSize();
+    this->sendPacket(&packet);
+
+    // Now we sent the packet the server expects the payload
+    int rc = send(this->_socket, cell->getData(), cell->getDataSize(), 0);
+    if (rc < 0)
+    {
+        throw std::logic_error("Failed to send cell payload rc= " + std::to_string(rc));
+    }
 }
 
 void ClientDomainSocket::connectToServer()
@@ -90,22 +107,9 @@ bool ClientDomainSocket::getNextPacket(struct DomainPacket *packet)
     int rc = -1;
 
     length = sizeof(struct DomainPacket);
-    struct DomainPacket domain_packet;
-
-    rc = setsockopt(this->_socket, SOL_SOCKET, SO_RCVLOWAT,
-                    (char *)&length, sizeof(length));
-    if (rc < 0)
-    {
-        throw std::logic_error("Problem with setsockopt");
-    }
-
-    rc = recv(this->_socket, &domain_packet, length, 0);
-    if (rc < 0)
-    {
-        // Recv failed then return
-        return false;
-    }
-    memcpy(packet, &domain_packet, sizeof(domain_packet));
+    read_blocked(packet, sizeof(struct DomainPacket));
+ 
+    memcpy(packet, packet, sizeof(struct DomainPacket));
     return true;
 }
 

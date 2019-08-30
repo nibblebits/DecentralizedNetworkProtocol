@@ -16,6 +16,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 #include "cell.h"
+#include "system.h"
 
 using namespace Dnp;
 Cell::Cell(CELL_ID id, System* system)
@@ -34,6 +35,16 @@ CELL_ID Cell::getId()
     return this->id;
 }
 
+unsigned long Cell::getDataSize()
+{
+    return this->data_size;
+}
+
+char* Cell::getData()
+{
+    return this->data;
+}
+
 void Cell::setData(char* data, unsigned long size)
 {
     this->data = data;
@@ -42,5 +53,6 @@ void Cell::setData(char* data, unsigned long size)
 
 void Cell::publish()
 {
-
+    // Send ourself
+    this->system->getClientDomainSocket()->sendCell(this);
 }

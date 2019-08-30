@@ -32,6 +32,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 namespace Dnp
 {
+
+
     class System
     {
     public:
@@ -45,6 +47,12 @@ namespace Dnp
         void test_ping();
 
         /**
+         * Returns the client domain socket if this socket uses a client_socket which would have been setup
+         * upon calling use()
+         */
+        ClientDomainSocket* getClientDomainSocket();
+
+        /**
          * Processes this DNP system instance
          */
         void process();
@@ -53,6 +61,11 @@ namespace Dnp
          * Creates a data cell on the DNP Network
          */
         Cell createCell();
+
+        /**
+         * Add's this cell to the DNP file for later processing
+         */
+        void addCellForProcessing(Cell& cell);
     private:
 
         void accept_socket_thread();

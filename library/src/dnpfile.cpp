@@ -154,7 +154,7 @@ void DnpFile::createCell(CELL_ID cell_id, unsigned long size, const char *data)
 }
 
 unsigned long DnpFile::getFreePositionForData(unsigned long size)
-{
+{    
     // Position us just after the file header, so that we point at the data table
     this->node_file.seekp(sizeof(struct file_header), this->node_file.beg);
 
@@ -283,10 +283,6 @@ unsigned long DnpFile::getFirstIpBlock()
 bool DnpFile::isIpBlockFull(unsigned long pos)
 {
     struct ip_block_header ip_block_header = readIpBlockHeader(pos);
-    if (ip_block_header.total_ips >= TOTAL_IPS_IN_BLOCK)
-    {
-        std::cout << "Ips: " << ip_block_header.total_ips << std::endl;
-    }
     return ip_block_header.total_ips >= TOTAL_IPS_IN_BLOCK;
 }
 

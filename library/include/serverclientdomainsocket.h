@@ -12,7 +12,7 @@ namespace Dnp
 class ServerClientDomainSocket : public DomainSocket
 {
 public:
-    ServerClientDomainSocket(int client_socket);
+    ServerClientDomainSocket(System* system, int client_socket);
     virtual ~ServerClientDomainSocket();
     
     void connectToServer();
@@ -20,9 +20,9 @@ public:
 protected:
     void sendPacket(struct DomainPacket* packet);
     void processPingPacket(struct DomainPacket* packet);
+    void processCellPacket(struct DomainPacket* packet);
     virtual void processIncomingDomainPacket(struct DomainPacket* packet);
 private:
-    int _socket;
   
 };
 }; // namespace Dnp

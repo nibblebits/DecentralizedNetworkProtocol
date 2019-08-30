@@ -29,7 +29,8 @@ namespace Dnp
             
             void setData(char* data, unsigned long size);
             CELL_ID getId();
-
+            unsigned long getDataSize();
+            char* getData();
             void publish();
         protected:
             // The numeric id of this node

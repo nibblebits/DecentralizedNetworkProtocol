@@ -12,7 +12,7 @@ namespace Dnp
 class ServerDomainSocket : public DomainSocket
 {
 public:
-    ServerDomainSocket();
+    ServerDomainSocket(System* system);
     virtual ~ServerDomainSocket();
     
     void host();
@@ -26,7 +26,6 @@ private:
     void socket_thread(ServerClientDomainSocket* client_socket);
     // Vector of threads relating to domain sockets
     std::vector<std::thread> threads;
-    int _socket;
 
 };
 }; // namespace Dnp

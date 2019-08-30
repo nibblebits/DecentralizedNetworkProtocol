@@ -17,7 +17,7 @@ System::System()
     this->dnp_file = new DnpFile();
     this->network = new Network(this->dnp_file);
     this->thread_pool = new ThreadPool(MAX_TOTAL_THREADS);
-    this->client_socket = NULL;
+    this->client_socket = nullptr;
 }
 
 System::~System()
@@ -27,6 +27,7 @@ System::~System()
     delete this->thread_pool;
 }
 
+std::fstream f;
 void System::accept_socket_thread()
 {
     while(1)
@@ -44,11 +45,13 @@ void System::host()
     network->bindMyself();
     network->scan();
 
-    this->server_socket = std::make_unique<ServerDomainSocket>();
+    this->server_socket = std::make_unique<ServerDomainSocket>(this);
     this->server_socket->host();
     this->thread_pool->addTask([=] {
          accept_socket_thread();
     });
+
+
 }
 
 void start_domain_socket_client_thread();
@@ -63,6 +66,15 @@ void System::test_ping()
     this->client_socket->sendPing();
 }
 
+ClientDomainSocket* System::getClientDomainSocket()
+{
+    if (this->client_socket == nullptr)
+    {
+        throw std::logic_error("client_socket is NULL did you call host()? This method is for use() only");
+    }
+
+    return this->client_socket;
+}
 
 void System::process()
 {
@@ -75,8 +87,15 @@ void System::process()
 void System::client_init_connect()
 {
     // Connect to this domain server
-    this->client_socket = new ClientDomainSocket();
+    this->client_socket = new ClientDomainSocket(this);
     this->client_socket->connectToServer();
+}
+
+void System::addCellForProcessing(Cell& cell)
+{
+   // this->dnp_file->createCell(cell.getId(), cell.getDataSize(), cell.getData());
+   this->dnp_file->createCell(cell.getId(), cell.getDataSize(), cell.getData());
+   
 }
 
 Cell System::createCell()
