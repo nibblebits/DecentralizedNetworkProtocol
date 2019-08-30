@@ -35,10 +35,7 @@ void ClientDomainSocket::sendPing()
     // Let's wait for a response
     this->getNextPacket(&packet);
 
-    if (packet.type != DOMAIN_PACKET_TYPE_PING_RESPONSE)
-    {
-        throw std::logic_error("Unexpected packet response for ping " + std::to_string(packet.type));
-    }
+    assert_packet_type(&packet, DOMAIN_PACKET_TYPE_PING_RESPONSE);
 
     if (packet.ping_packet.payload != packet.ping_packet.payload)
     {
@@ -70,6 +67,19 @@ void ClientDomainSocket::sendCell(Cell* cell)
     {
         throw std::logic_error("Failed to send cell payload rc= " + std::to_string(rc));
     }
+
+    // Ok lets get a response
+    struct DomainPacket res_packet;
+    this->getNextPacket(&res_packet);
+
+    // Ok let's check this was the correct response
+    assert_packet_type(&res_packet, DOMAIN_PACKET_TYPE_CELL_PUBLISH_RESPONSE);
+
+    // Its a cell publish response let's ensure that the cell was published correctly
+    if (res_packet.publish_response_packet.state != DOMAIN_PUBLISH_PACKET_STATE_OK_PROCESSING)
+    {
+        throw std::logic_error("sendCell() failed. DNP Server responded with publish packet state " + std::to_string(res_packet.publish_response_packet.state));
+    }
 }
 
 void ClientDomainSocket::connectToServer()
@@ -99,7 +109,7 @@ void ClientDomainSocket::process()
     // Do nothing.
 }
 
-bool ClientDomainSocket::getNextPacket(struct DomainPacket *packet)
+void ClientDomainSocket::getNextPacket(struct DomainPacket *packet)
 {
     // Null this thing
     memset(packet, 0, sizeof(struct DomainPacket));
@@ -110,6 +120,5 @@ bool ClientDomainSocket::getNextPacket(struct DomainPacket *packet)
     read_blocked(packet, sizeof(struct DomainPacket));
  
     memcpy(packet, packet, sizeof(struct DomainPacket));
-    return true;
 }
 

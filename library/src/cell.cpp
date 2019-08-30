@@ -30,6 +30,16 @@ Cell::~Cell()
     
 }
 
+void Cell::setFlags(CELL_FLAGS flags)
+{
+    this->flags = flags;
+}
+    
+CELL_FLAGS Cell::getFlags()
+{
+    return this->flags;
+}
+
 CELL_ID Cell::getId()
 {
     return this->id;

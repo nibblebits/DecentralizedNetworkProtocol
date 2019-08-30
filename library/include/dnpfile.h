@@ -5,7 +5,7 @@
 #include <fstream>
 #include <mutex>
 #include "dnp.h"
-
+#include "cell.h"
 // This is a bit dirty to be honest maybe a better solution can be achieved
 #define TOTAL_IPS_IN_BLOCK (DNP_SECTOR_SIZE / sizeof(struct in_addr)) - sizeof(struct ip_block_header)
 namespace Dnp
@@ -79,13 +79,14 @@ public:
     virtual ~DnpFile();
     void openFile(std::string filename);
     std::string getNodeFilename();
-    void createCell(CELL_ID cell_id, unsigned long size, const char *data);
+    void createCell(Cell* cell);
     bool doesIpExist(std::string ip);
     void addIp(std::string ip);
     bool getNextIp(std::string& ip_str, unsigned long* current_index, unsigned long ip_block_pos=-1);
     bool loadCell(CELL_ID cell_id, struct cell_header *cell_header, char **data);
 
 private:
+    bool _doesIpExist(std::string ip);
     void createCellTable();
     void loadFile(std::string filename);
     void setupFileAndOpen(std::string filename);

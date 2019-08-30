@@ -20,10 +20,8 @@ int main()
   cell.setData("testing 4444", 4);
   cell.publish();
 
-  while(1)
-  {
-    dnp.process();
-  }
+  std::cout << "cell published" << std::endl;
+ 
   
   return 0;
 }

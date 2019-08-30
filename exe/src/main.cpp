@@ -9,7 +9,6 @@ void createDnpFile()
 {
   DnpFile dnp_file;
   dnp_file.openFile("./test.dnp");
-  dnp_file.createCell(5, 5, "hello world");
   //dnp_file.createCell(5, 5, "hello world");
 
 /*   dnp_file.addIp("178.62.113.46");

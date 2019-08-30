@@ -35,6 +35,15 @@ System* DomainSocket::getSystem()
     return this->system;
 }
 
+void DomainSocket::assert_packet_type(struct DomainPacket* packet, DOMAIN_PACKET_TYPE expected_type)
+{
+    if (packet->type != expected_type)
+    {
+        throw std::logic_error("assert_packet_type() type mismatch for packet expecting type " + 
+            std::to_string(expected_type) + " but type " + std::to_string(packet->type) + " was provided");
+    }
+}
+
 void DomainSocket::read_blocked(void *data, size_t amount)
 {
     int rc = setsockopt(this->_socket, SOL_SOCKET, SO_RCVLOWAT,

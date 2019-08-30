@@ -27,6 +27,9 @@ namespace Dnp
             Cell(CELL_ID id, Dnp::System* system);
             virtual ~Cell();
             
+            void setFlags(CELL_FLAGS flags);
+            CELL_FLAGS getFlags();
+            
             void setData(char* data, unsigned long size);
             CELL_ID getId();
             unsigned long getDataSize();
@@ -37,6 +40,7 @@ namespace Dnp
             CELL_ID id;
             char* data;
             unsigned long data_size;
+            CELL_FLAGS flags;
         private:
             Dnp::System* system;
     };

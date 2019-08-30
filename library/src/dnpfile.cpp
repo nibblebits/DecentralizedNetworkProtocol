@@ -22,6 +22,7 @@ DnpFile::~DnpFile()
 
 void DnpFile::openFile(std::string filename)
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
     this->node_filename = filename;
 
     bool exists = std::experimental::filesystem::exists(filename);
@@ -104,8 +105,14 @@ void DnpFile::initIpBlock(struct ip_block *ip_block)
     memset(ip_block, 0x00, sizeof(struct ip_block));
 }
 
-void DnpFile::createCell(CELL_ID cell_id, unsigned long size, const char *data)
+void DnpFile::createCell(Cell* cell)
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
+    CELL_ID cell_id = cell->getId();
+    unsigned long size = cell->getDataSize();
+    const char *data = cell->getData();
+    CELL_FLAGS flags = cell->getFlags();
+
     // First check we have enough room for the data and the cell
     this->getFreePositionForDataOrThrow(size + sizeof(struct cell_header));
 
@@ -125,6 +132,7 @@ void DnpFile::createCell(CELL_ID cell_id, unsigned long size, const char *data)
 
     cell_header.id = cell_id;
     cell_header.size = size;
+    cell_header.flags = flags;
     cell_header.prev_cell_pos = this->loaded_file_header.last_cell;
     cell_header.data_pos = data_pos;
     this->node_file.seekp(cell_pos, this->node_file.beg);
@@ -333,6 +341,12 @@ void DnpFile::createNewIpBlockIfNeeded()
 
 bool DnpFile::doesIpExist(std::string ip)
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
+    return this->_doesIpExist(ip);
+}
+
+bool DnpFile::_doesIpExist(std::string ip)
+{
     std::string ip_str;
     unsigned long current_index = 0;
     while (getNextIp(ip_str, &current_index))
@@ -346,8 +360,9 @@ bool DnpFile::doesIpExist(std::string ip)
 
 void DnpFile::addIp(std::string ip)
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
     // Ip exists then we will not add it twice
-    if (doesIpExist(ip))
+    if (_doesIpExist(ip))
         return;
 
     // Create a new ip block if our current block is full
@@ -385,6 +400,7 @@ unsigned long DnpFile::getCurrentIpBlock()
 
 bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsigned long ip_block_pos)
 {
+    std::lock_guard<std::mutex> lock(this->mutex);
     // No IP block position provided then default to the first block!
     if (ip_block_pos == -1)
     {

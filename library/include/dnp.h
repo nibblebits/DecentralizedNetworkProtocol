@@ -22,8 +22,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define DNP_H
 #include "config.h"
 #include "types.h"
+#include "flags.h"
 #include "network.h"
 #include "system.h"
 #include "dnpfile.h"
 #include "cell.h"
+
 #endif

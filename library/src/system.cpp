@@ -93,9 +93,7 @@ void System::client_init_connect()
 
 void System::addCellForProcessing(Cell& cell)
 {
-   // this->dnp_file->createCell(cell.getId(), cell.getDataSize(), cell.getData());
-   this->dnp_file->createCell(cell.getId(), cell.getDataSize(), cell.getData());
-   
+   this->dnp_file->createCell(&cell);
 }
 
 Cell System::createCell()
@@ -103,5 +101,6 @@ Cell System::createCell()
     srand(time(NULL));
     unsigned int random_id = rand() % 5000;
     Cell cell(random_id, this);
+    cell.setFlags(CELL_FLAG_NOT_PUBLISHED);
     return cell;
 }

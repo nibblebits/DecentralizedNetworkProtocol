@@ -20,7 +20,7 @@ public:
     void sendPing();
     void sendCell(Cell* cell);
     virtual void process();
-    bool getNextPacket(struct DomainPacket* packet);
+    void getNextPacket(struct DomainPacket* packet);
 
 protected:
     void sendPacket(struct DomainPacket* packet);

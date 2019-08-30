@@ -97,10 +97,26 @@ void ServerClientDomainSocket::processCellPacket(struct DomainPacket* packet)
     // Reconstruct the cell
     Cell cell(publish_packet->cell_id, this->getSystem());
     cell.setData(payload, publish_packet->cell_data_size);
-    // Now we have everything we need let's add this cell to the network for later processing
-    this->getSystem()->addCellForProcessing(cell);
-    
 
+    struct DomainPacket res_packet;
+    res_packet.type = DOMAIN_PACKET_TYPE_CELL_PUBLISH_RESPONSE;
+    res_packet.publish_response_packet.cell_id = cell.getId();
+    try
+    {
+        // Now we have everything we need let's add this cell to the network for later processing
+        this->getSystem()->addCellForProcessing(cell);
+
+        // This was succesful the cell has been added for processing
+        res_packet.publish_response_packet.state = DOMAIN_PUBLISH_PACKET_STATE_OK_PROCESSING;
+    }
+    catch(std::exception& ex)
+    {
+        res_packet.publish_response_packet.state = DOMAIN_PUBLISH_PACKET_STATE_PUBLISH_FAILED;
+    }
+
+    // Let's send our response
+    this->sendPacket(&res_packet);
+    
 }
 
 void ServerClientDomainSocket::processIncomingDomainPacket(struct DomainPacket* packet)

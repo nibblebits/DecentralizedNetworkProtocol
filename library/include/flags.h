@@ -4,9 +4,11 @@
 enum
 {
     // We hold the raw node data locally 
-    NODE_FLAG_DATA_LOCAL = 0b00000001,
+    CELL_FLAG_DATA_LOCAL = 0b00000001,
     // We are aware of the node but we don't hold the data fetch it from the network
-    NODE_FLAG_DATA_EXTERNAL = 0b00000010
+    CELL_FLAG_DATA_EXTERNAL = 0b00000010,
+    // This flag is set if the cell has never been published to the network and should be published when next possible
+    CELL_FLAG_NOT_PUBLISHED = 0b00000100
 };
 
 #endif
