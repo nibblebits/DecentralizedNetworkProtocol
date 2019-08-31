@@ -2,6 +2,7 @@
 #include "system.h"
 #include "network.h"
 #include "threadpool.h"
+#include "mmapcell.h"
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,6 +42,7 @@ void System::host()
     this->thread_pool->start();
     dnp_file->openFile("./test.dnp");
 
+    process_cells_waiting_for_processing();
     network->begin();
     network->bindMyself();
     network->scan();
@@ -81,6 +83,28 @@ void System::process()
     if (this->client_socket != nullptr)
     {
         this->client_socket->process();
+    }
+}
+
+void System::process_cells_waiting_for_processing()
+{
+    // Let's read from the file and find cells that are waiting to be published
+    struct file_header header;
+    this->dnp_file->getFileHeader(&header);
+
+    std::cout << "Total cells: " << header.total_cells << std::endl;
+    
+    MemoryMappedCell cell(this);
+    CELL_POSITION pos = header.last_cell;
+    while(this->dnp_file->iterateBackwards(&cell, &pos))
+    {
+        std::cout << "Cell id: " << cell.getId() << std::endl;
+        if (cell.getFlags() & CELL_FLAG_DATA_LOCAL)
+        {
+            std::cout << "It works? : " << cell.getData() << std::endl;
+        }
+        std::cout << "abcdf" << std::endl;
+        
     }
 }
 

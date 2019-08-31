@@ -6,6 +6,7 @@
 #include <mutex>
 #include "dnp.h"
 #include "cell.h"
+#include "mmapcell.h"
 // This is a bit dirty to be honest maybe a better solution can be achieved
 #define TOTAL_IPS_IN_BLOCK (DNP_SECTOR_SIZE / sizeof(struct in_addr)) - sizeof(struct ip_block_header)
 namespace Dnp
@@ -79,13 +80,22 @@ public:
     virtual ~DnpFile();
     void openFile(std::string filename);
     std::string getNodeFilename();
+
+    bool getFileHeader(struct file_header* header);
     void createCell(Cell* cell);
     bool doesIpExist(std::string ip);
     void addIp(std::string ip);
     bool getNextIp(std::string& ip_str, unsigned long* current_index, unsigned long ip_block_pos=-1);
     bool loadCell(CELL_ID cell_id, struct cell_header *cell_header, char **data);
 
+    /**
+     * 
+     * Returns the cell at the current_pos then sets the current_pos to the previous cell from the cell just loaded
+     */
+    bool iterateBackwards(MemoryMappedCell* cell, CELL_POSITION* current_pos);
+
 private:
+    void loadCellHeader(struct cell_header *cell_header, CELL_POSITION position);
     bool _doesIpExist(std::string ip);
     void createCellTable();
     void loadFile(std::string filename);

@@ -20,29 +20,35 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "types.h"
 namespace Dnp
 {
-    class System;
-    class Cell
-    {
-        public:
-            Cell(CELL_ID id, Dnp::System* system);
-            virtual ~Cell();
-            
-            void setFlags(CELL_FLAGS flags);
-            CELL_FLAGS getFlags();
-            
-            void setData(char* data, unsigned long size);
-            CELL_ID getId();
-            unsigned long getDataSize();
-            char* getData();
-            void publish();
-        protected:
-            // The numeric id of this node
-            CELL_ID id;
-            char* data;
-            unsigned long data_size;
-            CELL_FLAGS flags;
-        private:
-            Dnp::System* system;
-    };
-}  
+class System;
+class Cell
+{
+public:
+    Cell(Dnp::System *system);
+    Cell(CELL_ID id, Dnp::System *system);
+    virtual ~Cell();
+        
+    void setId(CELL_ID id);
+    void setFlags(CELL_FLAGS flags);
+    void setData(char *data, unsigned long size);
+
+    CELL_ID getId();
+    CELL_FLAGS getFlags();
+    char *getData();
+
+
+    unsigned long getDataSize();
+    void publish();
+
+protected:
+    // The numeric id of this node
+    CELL_ID id;
+    char *data;
+    unsigned long data_size;
+    CELL_FLAGS flags;
+    Dnp::System *system;
+
+private:
+};
+} // namespace Dnp
 #endif

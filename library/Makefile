@@ -1,4 +1,4 @@
-SYSTEM_OBJECT_FILES = ./build/system.o ./build/network.o ./build/cell.o ./build/dnpfile.o ./build/threadpool.o ./build/domainsocket.o ./build/clientdomainsocket.o ./build/serverdomainsocket.o ./build/serverclientdomainsocket.o
+SYSTEM_OBJECT_FILES = ./build/system.o ./build/network.o ./build/cell.o ./build/mmapcell.o ./build/dnpfile.o ./build/threadpool.o ./build/domainsocket.o ./build/clientdomainsocket.o ./build/serverdomainsocket.o ./build/serverclientdomainsocket.o
 OBJECT_FILE_FLAGS = -c -g -fPIC -std=c++14 -g
 SYSTEM_LIB_LOCAL_FILENAME = libdnp.so
 SYSTEM_LIB_FILE_LOCATION = ./bin/${SYSTEM_LIB_LOCAL_FILENAME}
@@ -18,7 +18,8 @@ all: ${SYSTEM_OBJECT_FILES}
 
 ./build/cell.o: ./src/cell.cpp
 	g++ -I ${INCLUDES} ./src/cell.cpp -o ./build/cell.o ${OBJECT_FILE_FLAGS}
-
+./build/mmapcell.o: ./src/mmapcell.cpp
+	g++ -I ${INCLUDES} ./src/mmapcell.cpp -o ./build/mmapcell.o ${OBJECT_FILE_FLAGS}
 
 ./build/dnpfile.o: ./src/dnpfile.cpp
 	g++ -I ${INCLUDES} ./src/dnpfile.cpp -o ./build/dnpfile.o ${OBJECT_FILE_FLAGS}

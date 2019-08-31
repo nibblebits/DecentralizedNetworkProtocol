@@ -82,6 +82,12 @@ std::string DnpFile::getNodeFilename()
     return this->node_filename;
 }
 
+bool DnpFile::getFileHeader(struct file_header* header)
+{
+    memcpy(header, &this->loaded_file_header, sizeof(struct file_header));
+    return true;
+}
+
 void DnpFile::writeFileHeader()
 {
     this->node_file.seekp(0, this->node_file.beg);
@@ -105,13 +111,43 @@ void DnpFile::initIpBlock(struct ip_block *ip_block)
     memset(ip_block, 0x00, sizeof(struct ip_block));
 }
 
-void DnpFile::createCell(Cell* cell)
+bool DnpFile::iterateBackwards(MemoryMappedCell *cell, CELL_POSITION* current_pos)
+{
+    if (*current_pos == 0)
+    {
+        // We have reached the end
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(this->mutex);
+    struct cell_header header;
+    this->loadCellHeader(&header, *current_pos);
+    cell->setId(header.id);
+    cell->setFlags(header.flags);
+    if (header.flags & CELL_FLAG_DATA_LOCAL)
+    {
+       // cell->setData
+       cell->setMappedData(this->node_filename, header.data_pos, header.size);
+       
+    }
+
+    // Set the current position to the previous cell
+    *current_pos = header.prev_cell_pos;
+    return true;
+}
+void DnpFile::createCell(Cell *cell)
 {
     std::lock_guard<std::mutex> lock(this->mutex);
     CELL_ID cell_id = cell->getId();
     unsigned long size = cell->getDataSize();
     const char *data = cell->getData();
     CELL_FLAGS flags = cell->getFlags();
+
+    // We got the data set the local flag
+    if (data != nullptr)
+    {
+        flags |= CELL_FLAG_DATA_LOCAL;
+    }
 
     // First check we have enough room for the data and the cell
     this->getFreePositionForDataOrThrow(size + sizeof(struct cell_header));
@@ -162,7 +198,7 @@ void DnpFile::createCell(Cell* cell)
 }
 
 unsigned long DnpFile::getFreePositionForData(unsigned long size)
-{    
+{
     // Position us just after the file header, so that we point at the data table
     this->node_file.seekp(sizeof(struct file_header), this->node_file.beg);
 
@@ -439,6 +475,13 @@ bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsig
     return true;
 }
 
+void DnpFile::loadCellHeader(struct cell_header *cell_header, CELL_POSITION position)
+{
+    this->node_file.seekp(position, this->node_file.beg);
+    // Read in the cell data
+    this->node_file.read((char *)cell_header, sizeof(struct cell_header));
+}
+
 bool DnpFile::loadCell(CELL_ID cell_id, struct cell_header *cell_header, char **data)
 {
     *data = 0;
@@ -448,9 +491,7 @@ bool DnpFile::loadCell(CELL_ID cell_id, struct cell_header *cell_header, char **
     unsigned long current_pos = this->loaded_file_header.first_cell;
     while (current_pos != 0)
     {
-        this->node_file.seekp(current_pos, this->node_file.beg);
-        // Read in the cell data
-        this->node_file.read((char *)&tmp_header, sizeof(tmp_header));
+        loadCellHeader(&tmp_header, current_pos);
         if (tmp_header.id == cell_id)
         {
             // We found it copy over the header into the returning header

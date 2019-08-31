@@ -19,6 +19,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "system.h"
 
 using namespace Dnp;
+
+Cell::Cell(Dnp::System *system)
+{
+    this->system = system;
+}
 Cell::Cell(CELL_ID id, System* system)
 {
     this->id = id;
@@ -38,6 +43,11 @@ void Cell::setFlags(CELL_FLAGS flags)
 CELL_FLAGS Cell::getFlags()
 {
     return this->flags;
+}
+
+void Cell::setId(CELL_ID id)
+{
+    this->id = id;
 }
 
 CELL_ID Cell::getId()

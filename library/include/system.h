@@ -62,12 +62,13 @@ namespace Dnp
          */
         Cell createCell();
 
+
         /**
          * Add's this cell to the DNP file for later processing
          */
         void addCellForProcessing(Cell& cell);
     private:
-
+        void process_cells_waiting_for_processing();
         void accept_socket_thread();
         DnpFile* dnp_file;
         Network* network;
