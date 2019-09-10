@@ -23,11 +23,12 @@ using namespace Dnp;
 Cell::Cell(Dnp::System *system)
 {
     this->system = system;
+    this->data = nullptr;
+    this->data_size = -1;
 }
-Cell::Cell(std::string id, System* system)
+Cell::Cell(std::string id, System* system) : Cell(system)
 {
     this->id = id;
-    this->system = system;
 }
 
 Cell::~Cell()
@@ -50,9 +51,30 @@ void Cell::setId(std::string id)
     this->id = id;
 }
 
+void Cell::setPublicKey(std::string public_key)
+{
+    this->public_key = public_key;
+}
+
+void Cell::setPrivateKey(std::string private_key)
+{
+    this->private_key = private_key;
+}
+
+
 std::string Cell::getId()
 {
     return this->id;
+}
+
+std::string Cell::getPublicKey()
+{
+    return this->public_key;
+}
+
+std::string Cell::getPrivateKey()
+{
+    return this->private_key;
 }
 
 unsigned long Cell::getDataSize()

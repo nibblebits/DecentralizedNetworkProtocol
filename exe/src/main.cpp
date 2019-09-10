@@ -8,22 +8,22 @@ using namespace Dnp;
 
 void createDnpFile()
 {
-  DnpFile dnp_file;
-  dnp_file.openFile("./test.dnp");
   Dnp::System dnp;
-  Cell cell(&dnp);
-
+  DnpFile dnp_file(&dnp);
+  dnp_file.openFile("./test.dnp");
+  Cell cell = dnp.createCell();
   cell.setId("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-  cell.setData("This is cool", 13);
-  cell.setFlags(CELL_FLAG_DATA_LOCAL);
+  cell.setData("Hello world", 12);
+//  cell.publish();
+  
+  
   dnp_file.createCell(&cell);
 
-  struct cell_header cell_header;
-  char* data;
-  dnp_file.loadCell("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", &cell_header, &data);
 
-  std::cout << "Id: " << std::string((char*) &cell_header.id, MD5_HEX_SIZE) << std::endl;
-
+  MemoryMappedCell new_cell(&dnp);
+  dnp_file.loadCell("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", new_cell);
+  std::cout << new_cell.getData() << std::endl;
+  std::cout << new_cell.getPrivateKey() << std::endl;
 }
 
 void host()

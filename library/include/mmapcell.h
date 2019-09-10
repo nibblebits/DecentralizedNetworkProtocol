@@ -30,12 +30,13 @@ public:
     virtual ~MemoryMappedCell();
    
     void setMappedData(std::string filename, off_t offset, size_t size);
+    
 protected:
     void closeMmapData();
 private:
     void* mmap_data;
-    size_t mmap_size;
-    int mmap_fd;
+    size_t mmap_data_size;
+    int mmap_data_fd;
 };
 } // namespace Dnp
 #endif

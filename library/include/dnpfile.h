@@ -47,11 +47,19 @@ struct data_table_header
     unsigned int total_sectors;
 };
 
+
 struct cell_header
 {
     unsigned char id[MD5_HEX_SIZE];
-    unsigned long size;
+    size_t size;
     CELL_FLAGS flags;
+
+    CELL_RSA_KEY_POSITION public_key_pos;
+    size_t public_key_size;
+
+    CELL_RSA_KEY_POSITION private_key_pos;
+    size_t private_key_size;
+
     CELL_DATA_POSITION data_pos;
     CELL_POSITION prev_cell_pos;
     CELL_POSITION next_cell_pos;
@@ -73,10 +81,11 @@ struct ip_block
     struct in_addr ip[TOTAL_IPS_IN_BLOCK];
 };
 
+class System;
 class DnpFile
 {
 public:
-    DnpFile();
+    DnpFile(System* system);
     virtual ~DnpFile();
     void openFile(std::string filename);
     std::string getNodeFilename();
@@ -86,7 +95,7 @@ public:
     bool doesIpExist(std::string ip);
     void addIp(std::string ip);
     bool getNextIp(std::string& ip_str, unsigned long* current_index, unsigned long ip_block_pos=-1);
-    bool loadCell(std::string cell_id, struct cell_header *cell_header, char **data);
+    bool loadCell(std::string cell_id, MemoryMappedCell& cell);
 
     /**
      * 
@@ -173,11 +182,16 @@ private:
              */
     void markDataTaken(unsigned long pos, unsigned long size);
 
+
+    void seek_and_write(unsigned long pos, const char* data, unsigned long size);
+    void seek_and_read(unsigned long pos, char* data, unsigned long size);
+    
 protected:
     std::mutex mutex;
     std::fstream node_file;
     std::string node_filename;
     struct file_header loaded_file_header;
+    System* system;
 };
 }; // namespace Dnp
 

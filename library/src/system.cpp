@@ -21,7 +21,7 @@ using namespace Dnp;
  
 System::System()
 {
-    this->dnp_file = new DnpFile();
+    this->dnp_file = new DnpFile(this);
     this->network = new Network(this->dnp_file);
     this->thread_pool = new ThreadPool(MAX_TOTAL_THREADS);
     this->client_socket = nullptr;
@@ -130,6 +130,8 @@ Cell System::createCell()
 
     struct rsa_keypair keypair = Rsa::generateKeypair();
     Cell cell(keypair.pub_key_md5_hash, this);
-    cell.setFlags(CELL_FLAG_NOT_PUBLISHED);
+    cell.setPublicKey(keypair.pub_key);
+    cell.setPrivateKey(keypair.private_key);
+    cell.setFlags(CELL_FLAG_NOT_PUBLISHED | CELL_FLAG_PRIVATE_KEY_HOLDER);
     return cell;
 }

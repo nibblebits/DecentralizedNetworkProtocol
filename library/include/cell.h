@@ -30,10 +30,15 @@ public:
     virtual ~Cell();
         
     void setId(std::string id);
+    void setPublicKey(std::string public_key);
+    void setPrivateKey(std::string public_key);
+
     void setFlags(CELL_FLAGS flags);
     void setData(char *data, unsigned long size);
 
     std::string getId();
+    std::string getPublicKey();
+    std::string getPrivateKey();
     CELL_FLAGS getFlags();
     char *getData();
 
@@ -42,8 +47,10 @@ public:
     void publish();
 
 protected:
-    // The numeric id of this node
-    std::string id;
+    // The numeric id of this node (id = md5(public_key))
+    std::string id;    
+    std::string public_key;
+    std::string private_key;
     char *data;
     unsigned long data_size;
     CELL_FLAGS flags;
