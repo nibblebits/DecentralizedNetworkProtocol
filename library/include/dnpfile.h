@@ -49,7 +49,7 @@ struct data_table_header
 
 struct cell_header
 {
-    CELL_ID id;
+    unsigned char id[MD5_HEX_SIZE];
     unsigned long size;
     CELL_FLAGS flags;
     CELL_DATA_POSITION data_pos;
@@ -86,7 +86,7 @@ public:
     bool doesIpExist(std::string ip);
     void addIp(std::string ip);
     bool getNextIp(std::string& ip_str, unsigned long* current_index, unsigned long ip_block_pos=-1);
-    bool loadCell(CELL_ID cell_id, struct cell_header *cell_header, char **data);
+    bool loadCell(std::string cell_id, struct cell_header *cell_header, char **data);
 
     /**
      * 

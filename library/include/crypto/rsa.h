@@ -13,43 +13,34 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
 */
 
-#ifndef CELL_H
-#define CELL_H
-#include "types.h"
+/**
+ * This file is a simple C++ RSA wrapper that wraps over OpenSSL RSA
+ */
+#ifndef RSA_H
+#define RSA_H
+
 #include <string>
 namespace Dnp
 {
-class System;
-class Cell
-{
-public:
-    Cell(Dnp::System *system);
-    Cell(std::string id, Dnp::System *system);
-    virtual ~Cell();
-        
-    void setId(std::string id);
-    void setFlags(CELL_FLAGS flags);
-    void setData(char *data, unsigned long size);
+    struct rsa_keypair
+    {
+        std::string pub_key;
+        std::string private_key;
+        std::string pub_key_md5_hash;
+        std::string private_key_md5_hash;
+    };
 
-    std::string getId();
-    CELL_FLAGS getFlags();
-    char *getData();
+    class Rsa
+    {
+        public:
+            Rsa();
+            virtual ~Rsa();
 
+            static struct rsa_keypair generateKeypair();
+    };
+}
 
-    unsigned long getDataSize();
-    void publish();
-
-protected:
-    // The numeric id of this node
-    std::string id;
-    char *data;
-    unsigned long data_size;
-    CELL_FLAGS flags;
-    Dnp::System *system;
-
-private:
-};
-} // namespace Dnp
 #endif

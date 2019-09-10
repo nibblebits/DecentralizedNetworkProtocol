@@ -26,7 +26,7 @@ class MemoryMappedCell : public Cell
 {
 public:
     MemoryMappedCell(Dnp::System *system);
-    MemoryMappedCell(CELL_ID id, Dnp::System *system);
+    MemoryMappedCell(std::string id, Dnp::System *system);
     virtual ~MemoryMappedCell();
    
     void setMappedData(std::string filename, off_t offset, size_t size);

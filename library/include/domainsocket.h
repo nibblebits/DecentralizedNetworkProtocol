@@ -33,7 +33,7 @@ struct DomainPingPacket
 
 struct DomainCellPublishPacket
 {
-    CELL_ID cell_id;
+    char cell_id[MD5_HEX_SIZE];
     unsigned long cell_data_size;
     // Cell data follows after receving this packet, read cell_data_size x bytes
 };
@@ -41,7 +41,7 @@ struct DomainCellPublishPacket
 
 struct DomainCellPublishResponsePacket
 {
-    CELL_ID cell_id;
+    char cell_id[MD5_HEX_SIZE];
     DOMAIN_PUBLISH_PACKET_STATE state;
 };
 

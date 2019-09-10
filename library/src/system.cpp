@@ -1,8 +1,10 @@
 #include "dnp.h"
 #include "system.h"
+#include "misc.h"
 #include "network.h"
 #include "threadpool.h"
 #include "mmapcell.h"
+#include "crypto/rsa.h"
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +14,11 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+
+
 using namespace Dnp;
+
+ 
 System::System()
 {
     this->dnp_file = new DnpFile();
@@ -42,7 +48,6 @@ void System::host()
     this->thread_pool->start();
     dnp_file->openFile("./test.dnp");
 
-    process_cells_waiting_for_processing();
     network->begin();
     network->bindMyself();
     network->scan();
@@ -122,9 +127,9 @@ void System::addCellForProcessing(Cell& cell)
 
 Cell System::createCell()
 {
-    srand(time(NULL));
-    unsigned int random_id = rand() % 5000;
-    Cell cell(random_id, this);
+
+    struct rsa_keypair keypair = Rsa::generateKeypair();
+    Cell cell(keypair.pub_key_md5_hash, this);
     cell.setFlags(CELL_FLAG_NOT_PUBLISHED);
     return cell;
 }

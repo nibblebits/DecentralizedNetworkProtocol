@@ -57,7 +57,7 @@ void ClientDomainSocket::sendCell(Cell* cell)
 {
     struct DomainPacket packet;
     packet.type = DOMAIN_PACKET_TYPE_CELL_PUBLISH;
-    packet.publish_packet.cell_id = cell->getId();
+    memcpy(packet.publish_packet.cell_id, cell->getId().c_str(), MD5_HEX_SIZE);
     packet.publish_packet.cell_data_size = cell->getDataSize();
     this->sendPacket(&packet);
 

@@ -1,4 +1,4 @@
-SYSTEM_OBJECT_FILES = ./build/system.o ./build/network.o ./build/cell.o ./build/mmapcell.o ./build/dnpfile.o ./build/threadpool.o ./build/domainsocket.o ./build/clientdomainsocket.o ./build/serverdomainsocket.o ./build/serverclientdomainsocket.o
+SYSTEM_OBJECT_FILES = ./build/system.o ./build/misc.o ./build/rsa.o ./build/network.o ./build/cell.o ./build/mmapcell.o ./build/dnpfile.o ./build/threadpool.o ./build/domainsocket.o ./build/clientdomainsocket.o ./build/serverdomainsocket.o ./build/serverclientdomainsocket.o
 OBJECT_FILE_FLAGS = -c -g -fPIC -std=c++14 -g
 SYSTEM_LIB_LOCAL_FILENAME = libdnp.so
 SYSTEM_LIB_FILE_LOCATION = ./bin/${SYSTEM_LIB_LOCAL_FILENAME}
@@ -8,10 +8,16 @@ install: all
 	cp ${SYSTEM_LIB_FILE_LOCATION} /usr/lib/${SYSTEM_LIB_LOCAL_FILENAME}
 
 all: ${SYSTEM_OBJECT_FILES}
-	g++ ${SYSTEM_OBJECT_FILES} ${EXTERNAL_OBJECT_FILES} -g -o ${SYSTEM_LIB_FILE_LOCATION} -lstdc++fs -lpthread -lm -lrt -shared -Wl,-rpath,'./lib'-export-dynamic
+	g++ ${SYSTEM_OBJECT_FILES} ${EXTERNAL_OBJECT_FILES} -g -o ${SYSTEM_LIB_FILE_LOCATION} -lstdc++fs -lpthread -lssl -lcrypto -lm -lrt -shared -Wl,-rpath,'./lib'-export-dynamic
 
 ./build/system.o: ./src/system.cpp
 	g++ -I ${INCLUDES} ./src/system.cpp -o ./build/system.o ${OBJECT_FILE_FLAGS}
+
+./build/misc.o: ./src/misc.cpp
+	g++ -I ${INCLUDES} ./src/misc.cpp -o ./build/misc.o ${OBJECT_FILE_FLAGS}
+
+./build/rsa.o: ./src/crypto/rsa.cpp
+	g++ -I ${INCLUDES} ./src/crypto/rsa.cpp -o ./build/rsa.o ${OBJECT_FILE_FLAGS}
 
 ./build/network.o: ./src/network.cpp
 	g++ -I ${INCLUDES} ./src/network.cpp -o ./build/network.o ${OBJECT_FILE_FLAGS}

@@ -12,4 +12,8 @@
 // Compiled in for now but in the future best to calculate this
 #define MAX_TOTAL_THREADS 8
 
+
+// Encryption definitions
+#define RSA_BITS 2048
+
 #endif

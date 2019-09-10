@@ -100,7 +100,7 @@ void ServerClientDomainSocket::processCellPacket(struct DomainPacket* packet)
 
     struct DomainPacket res_packet;
     res_packet.type = DOMAIN_PACKET_TYPE_CELL_PUBLISH_RESPONSE;
-    res_packet.publish_response_packet.cell_id = cell.getId();
+    memcpy(res_packet.publish_response_packet.cell_id, cell.getId().c_str(), MD5_HEX_SIZE);
     try
     {
         // Now we have everything we need let's add this cell to the network for later processing

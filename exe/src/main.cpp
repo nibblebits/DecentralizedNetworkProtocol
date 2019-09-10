@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <memory.h>
 #include "dnp.h"
 #include "dnpfile.h"
@@ -11,44 +12,17 @@ void createDnpFile()
   dnp_file.openFile("./test.dnp");
   Dnp::System dnp;
   Cell cell(&dnp);
-  cell.setId(3782917);
-  cell.setData("Hello world", 12);
-  cell.setFlags(CELL_FLAG_DATA_LOCAL);
-  dnp_file.createCell(&cell);
 
-int i = 0;
-try
-{
-  while(1)
-  {
-    i++;
-  cell.setId(32323223+i);
+  cell.setId("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
   cell.setData("This is cool", 13);
   cell.setFlags(CELL_FLAG_DATA_LOCAL);
   dnp_file.createCell(&cell);
-  }
-} catch(...)
-{
-  
-}
 
-  std::cout << "Total created: " << i << std::endl;
+  struct cell_header cell_header;
+  char* data;
+  dnp_file.loadCell("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", &cell_header, &data);
 
-  cell.setId(32321132);
-  cell.setData("This is cool", 13);
-  cell.setFlags(CELL_FLAG_DATA_LOCAL);
-  dnp_file.createCell(&cell);
-  //dnp_file.createCell(5, 5, "hello world");
-
-/*   dnp_file.addIp("178.62.113.46");
-
-  std::string ip_str;
-  unsigned long current_index = 0;
-  while(dnp_file.getNextIp(ip_str, &current_index))
-  {
-  }*/
-
-
+  std::cout << "Id: " << std::string((char*) &cell_header.id, MD5_HEX_SIZE) << std::endl;
 
 }
 

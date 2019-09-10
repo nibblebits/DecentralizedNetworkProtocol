@@ -24,7 +24,7 @@ Cell::Cell(Dnp::System *system)
 {
     this->system = system;
 }
-Cell::Cell(CELL_ID id, System* system)
+Cell::Cell(std::string id, System* system)
 {
     this->id = id;
     this->system = system;
@@ -45,12 +45,12 @@ CELL_FLAGS Cell::getFlags()
     return this->flags;
 }
 
-void Cell::setId(CELL_ID id)
+void Cell::setId(std::string id)
 {
     this->id = id;
 }
 
-CELL_ID Cell::getId()
+std::string Cell::getId()
 {
     return this->id;
 }

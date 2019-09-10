@@ -122,7 +122,7 @@ bool DnpFile::iterateBackwards(MemoryMappedCell *cell, CELL_POSITION* current_po
     std::lock_guard<std::mutex> lock(this->mutex);
     struct cell_header header;
     this->loadCellHeader(&header, *current_pos);
-    cell->setId(header.id);
+    cell->setId(std::string((char*)&header.id, 5));
     cell->setFlags(header.flags);
     if (header.flags & CELL_FLAG_DATA_LOCAL)
     {
@@ -138,7 +138,7 @@ bool DnpFile::iterateBackwards(MemoryMappedCell *cell, CELL_POSITION* current_po
 void DnpFile::createCell(Cell *cell)
 {
     std::lock_guard<std::mutex> lock(this->mutex);
-    CELL_ID cell_id = cell->getId();
+    std::string cell_id = cell->getId();
     unsigned long size = cell->getDataSize();
     const char *data = cell->getData();
     CELL_FLAGS flags = cell->getFlags();
@@ -165,8 +165,8 @@ void DnpFile::createCell(Cell *cell)
     // Now create and write the cell header
     struct cell_header cell_header;
     initCellHeader(&cell_header);
+    memcpy(cell_header.id, cell_id.c_str(), MD5_HEX_SIZE);
 
-    cell_header.id = cell_id;
     cell_header.size = size;
     cell_header.flags = flags;
     cell_header.prev_cell_pos = this->loaded_file_header.last_cell;
@@ -482,7 +482,7 @@ void DnpFile::loadCellHeader(struct cell_header *cell_header, CELL_POSITION posi
     this->node_file.read((char *)cell_header, sizeof(struct cell_header));
 }
 
-bool DnpFile::loadCell(CELL_ID cell_id, struct cell_header *cell_header, char **data)
+bool DnpFile::loadCell(std::string cell_id, struct cell_header *cell_header, char **data)
 {
     *data = 0;
 
@@ -492,7 +492,7 @@ bool DnpFile::loadCell(CELL_ID cell_id, struct cell_header *cell_header, char **
     while (current_pos != 0)
     {
         loadCellHeader(&tmp_header, current_pos);
-        if (tmp_header.id == cell_id)
+        if (memcmp(tmp_header.id, cell_id.c_str(), MD5_HEX_SIZE) == 0)
         {
             // We found it copy over the header into the returning header
             *data = new char[tmp_header.size];
