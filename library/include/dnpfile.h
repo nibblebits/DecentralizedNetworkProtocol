@@ -96,6 +96,7 @@ public:
     void addIp(std::string ip);
     bool getNextIp(std::string& ip_str, unsigned long* current_index, unsigned long ip_block_pos=-1);
     bool loadCell(std::string cell_id, MemoryMappedCell& cell);
+    bool updateCell(MemoryMappedCell& cell);
 
     /**
      * 
@@ -104,8 +105,11 @@ public:
     bool iterateBackwards(MemoryMappedCell* cell, CELL_POSITION* current_pos);
 
 private:
+    off_t find(std::string cell_id, struct cell_header& tmp_header);
     void loadCellHeader(struct cell_header *cell_header, CELL_POSITION position);
     bool _doesIpExist(std::string ip);
+    bool _loadCell(std::string cell_id, MemoryMappedCell& cell);
+    bool _updateCell(MemoryMappedCell& cell);
     void createCellTable();
     void loadFile(std::string filename);
     void setupFileAndOpen(std::string filename);

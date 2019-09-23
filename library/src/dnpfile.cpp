@@ -8,7 +8,7 @@
 #include <exception>
 #include <experimental/filesystem>
 using namespace Dnp;
-DnpFile::DnpFile(System* system)
+DnpFile::DnpFile(System *system)
 {
     memset(&this->loaded_file_header, 0, sizeof(this->loaded_file_header));
 }
@@ -83,7 +83,7 @@ std::string DnpFile::getNodeFilename()
     return this->node_filename;
 }
 
-bool DnpFile::getFileHeader(struct file_header* header)
+bool DnpFile::getFileHeader(struct file_header *header)
 {
     memcpy(header, &this->loaded_file_header, sizeof(struct file_header));
     return true;
@@ -112,7 +112,7 @@ void DnpFile::initIpBlock(struct ip_block *ip_block)
     memset(ip_block, 0x00, sizeof(struct ip_block));
 }
 
-bool DnpFile::iterateBackwards(MemoryMappedCell *cell, CELL_POSITION* current_pos)
+bool DnpFile::iterateBackwards(MemoryMappedCell *cell, CELL_POSITION *current_pos)
 {
     if (*current_pos == 0)
     {
@@ -123,13 +123,12 @@ bool DnpFile::iterateBackwards(MemoryMappedCell *cell, CELL_POSITION* current_po
     std::lock_guard<std::mutex> lock(this->mutex);
     struct cell_header header;
     this->loadCellHeader(&header, *current_pos);
-    cell->setId(std::string((char*)&header.id, 5));
+    cell->setId(std::string((char *)&header.id, MD5_HEX_SIZE));
     cell->setFlags(header.flags);
     if (header.flags & CELL_FLAG_DATA_LOCAL)
     {
-       // cell->setData
-       cell->setMappedData(this->node_filename, header.data_pos, header.size);
-       
+        // cell->setData
+        cell->setMappedData(this->node_filename, header.data_pos, header.size);
     }
 
     // Set the current position to the previous cell
@@ -137,13 +136,13 @@ bool DnpFile::iterateBackwards(MemoryMappedCell *cell, CELL_POSITION* current_po
     return true;
 }
 
-void DnpFile::seek_and_write(unsigned long pos, const char* data, unsigned long size)
+void DnpFile::seek_and_write(unsigned long pos, const char *data, unsigned long size)
 {
     this->node_file.seekp(pos);
     this->node_file.write(data, size);
 }
 
-void DnpFile::seek_and_read(unsigned long pos, char* data, unsigned long size)
+void DnpFile::seek_and_read(unsigned long pos, char *data, unsigned long size)
 {
     this->node_file.seekp(pos);
     this->node_file.read(data, size);
@@ -186,7 +185,6 @@ void DnpFile::createCell(Cell *cell)
         private_key_pos = this->getFreePositionForDataOrThrow(private_key.size());
         seek_and_write(private_key_pos, private_key.c_str(), private_key.size());
         this->markDataTaken(private_key_pos, private_key.size());
-
     }
 
     // Get a valid position for the data
@@ -203,7 +201,6 @@ void DnpFile::createCell(Cell *cell)
     initCellHeader(&cell_header);
     memcpy(cell_header.id, cell_id.c_str(), MD5_HEX_SIZE);
 
-    
     cell_header.size = size;
     cell_header.flags = flags;
     cell_header.prev_cell_pos = this->loaded_file_header.last_cell;
@@ -516,6 +513,54 @@ bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsig
     return true;
 }
 
+off_t DnpFile::find(std::string cell_id, struct cell_header& tmp_header)
+{
+    off_t current_pos = this->loaded_file_header.first_cell;
+    while(current_pos != 0)
+    {
+        loadCellHeader(&tmp_header, current_pos);
+        if (memcmp(&tmp_header.id, cell_id.c_str(), MD5_HEX_SIZE) == 0)
+        {
+            break;
+        }
+        current_pos = tmp_header.next_cell_pos;
+    }
+
+    return current_pos;
+}
+
+bool DnpFile::_updateCell(MemoryMappedCell& cell)
+{
+    struct cell_header tmp_header;
+    off_t header_offset = this->find(cell.getId(), tmp_header);
+    if (header_offset == 0)
+        return false;
+
+    
+    // Cell was not updated? Then we are done here
+    if (!cell.wasCellUpdated())
+    {
+        return false;
+    }
+
+    struct cell_changes changes = cell.getCellChanges();
+    if (changes.flags_changed)
+    {
+        tmp_header.flags = cell.getFlags();
+        this->seek_and_write(header_offset+offsetof(struct cell_header, flags), (const char*) &tmp_header.flags, sizeof(tmp_header.flags));
+    }
+
+    // Cell was updated clear the changes
+    cell.clearChanges();
+    return true;
+}
+
+bool DnpFile::updateCell(MemoryMappedCell &cell)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    return this->_updateCell(cell);
+}
+
 void DnpFile::loadCellHeader(struct cell_header *cell_header, CELL_POSITION position)
 {
     this->node_file.seekp(position, this->node_file.beg);
@@ -523,9 +568,8 @@ void DnpFile::loadCellHeader(struct cell_header *cell_header, CELL_POSITION posi
     this->node_file.read((char *)cell_header, sizeof(struct cell_header));
 }
 
-bool DnpFile::loadCell(std::string cell_id, MemoryMappedCell& cell)
+bool DnpFile::_loadCell(std::string cell_id, MemoryMappedCell &cell)
 {
-
     // Read in the cell header
     struct cell_header tmp_header;
     unsigned long current_pos = this->loaded_file_header.first_cell;
@@ -537,19 +581,21 @@ bool DnpFile::loadCell(std::string cell_id, MemoryMappedCell& cell)
             // We found it copy over the header into the returning header
             cell.setMappedData(this->node_filename, tmp_header.data_pos, tmp_header.size);
             cell.setFlags(tmp_header.flags);
-            cell.setId(std::string((char*)tmp_header.id, MD5_HEX_SIZE));
-            
+            cell.setId(std::string((char *)tmp_header.id, MD5_HEX_SIZE));
+
             std::unique_ptr<char[]> public_key(new char[tmp_header.public_key_size]);
             seek_and_read(tmp_header.public_key_pos, public_key.get(), tmp_header.public_key_size);
-            cell.setPublicKey(std::string((char*) public_key.get(), tmp_header.public_key_size));
+            cell.setPublicKey(std::string((char *)public_key.get(), tmp_header.public_key_size));
 
             if (tmp_header.flags & CELL_FLAG_PRIVATE_KEY_HOLDER)
             {
                 std::unique_ptr<char[]> private_key(new char[tmp_header.private_key_size]);
                 seek_and_read(tmp_header.private_key_pos, private_key.get(), tmp_header.private_key_size);
-                cell.setPrivateKey(std::string((char*) private_key.get(), tmp_header.private_key_size));
+                cell.setPrivateKey(std::string((char *)private_key.get(), tmp_header.private_key_size));
             }
-           // memcpy(cell_header, &tmp_header, sizeof(tmp_header));
+
+            // Clear the changes of this cell as its fully updated
+            cell.clearChanges();
             return true;
         }
 
@@ -557,4 +603,10 @@ bool DnpFile::loadCell(std::string cell_id, MemoryMappedCell& cell)
     }
 
     return false;
+}
+
+bool DnpFile::loadCell(std::string cell_id, MemoryMappedCell &cell)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->_loadCell(cell_id, cell);
 }

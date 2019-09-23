@@ -17,6 +17,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#include "cell.h"
+#include "types.h"
 #include <string>
 #include <vector>
 #include <thread>
@@ -43,7 +45,8 @@ namespace Dnp
         PACKET_TYPE_INITIAL_HELLO,
         PACKET_TYPE_RESPOND_HELLO,
         PACKET_TYPE_ACTIVE_IP,
-        PACKET_TYPE_PING
+        PACKET_TYPE_PING,
+        PACKET_TYPE_CELL_PUBLISH
     };
 
     struct HelloPacket
@@ -63,6 +66,19 @@ namespace Dnp
     };
 
 
+    struct CellPacket_header
+    {
+        char cell_id[MD5_HEX_SIZE];
+        NETWORK_CELL_FLAGS flags; 
+        char public_key[MAX_PUBLIC_KEY_SIZE];
+    };
+
+    struct CellPacket
+    {
+        struct CellPacket_header cell_header;
+        char data[65000 - sizeof(CellPacket_header)];
+    };
+
     struct Packet
     {
         PACKET_TYPE type;
@@ -70,6 +86,7 @@ namespace Dnp
         {
             struct HelloPacket hello_packet;
             struct ActiveIpPacket active_ip_packet;
+            struct CellPacket cell_packet;
         };
     };
 
@@ -86,6 +103,8 @@ namespace Dnp
         void bindMyself();
 
         void sendPacket(std::string ip, struct Packet* packet);
+        void sendCell(Cell* cell);
+
         void broadcast(struct Packet* packet);
 
     private:

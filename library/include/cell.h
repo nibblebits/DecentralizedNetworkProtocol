@@ -22,6 +22,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 namespace Dnp
 {
 class System;
+
+struct cell_changes
+{   
+    bool changed;
+    bool flags_changed;
+    bool data_changed;
+};
+
 class Cell
 {
 public:
@@ -34,7 +42,18 @@ public:
     void setPrivateKey(std::string public_key);
 
     void setFlags(CELL_FLAGS flags);
+    void setFlag(CELL_FLAG flag);
     void setData(char *data, unsigned long size);
+
+    bool hasData();
+    
+    /**
+     * Clears the defined changes not the changes themselves
+     */
+    void clearChanges();
+
+    bool wasCellUpdated();
+    struct cell_changes getCellChanges();
 
     std::string getId();
     std::string getPublicKey();
@@ -55,6 +74,8 @@ protected:
     unsigned long data_size;
     CELL_FLAGS flags;
     Dnp::System *system;
+
+    struct cell_changes cell_changes;
 
 private:
 };

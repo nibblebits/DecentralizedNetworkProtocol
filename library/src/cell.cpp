@@ -17,6 +17,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "cell.h"
 #include "system.h"
+#include <memory.h>
 
 using namespace Dnp;
 
@@ -25,6 +26,7 @@ Cell::Cell(Dnp::System *system)
     this->system = system;
     this->data = nullptr;
     this->data_size = -1;
+    this->clearChanges();
 }
 Cell::Cell(std::string id, System* system) : Cell(system)
 {
@@ -39,8 +41,17 @@ Cell::~Cell()
 void Cell::setFlags(CELL_FLAGS flags)
 {
     this->flags = flags;
+    this->cell_changes.changed = true;
+    this->cell_changes.flags_changed = true;
 }
-    
+
+void Cell::setFlag(CELL_FLAG flag)
+{
+    this->flags |= flag;
+    this->cell_changes.changed = true;
+    this->cell_changes.flags_changed = true;
+}
+
 CELL_FLAGS Cell::getFlags()
 {
     return this->flags;
@@ -62,6 +73,15 @@ void Cell::setPrivateKey(std::string private_key)
 }
 
 
+bool Cell::wasCellUpdated()
+{
+    return this->cell_changes.changed;
+}
+
+struct cell_changes Cell::getCellChanges()
+{
+    return this->cell_changes;
+}
 std::string Cell::getId()
 {
     return this->id;
@@ -87,12 +107,23 @@ char* Cell::getData()
     return this->data;
 }
 
+bool Cell::hasData()
+{
+    return this->data_size != 0;
+}
+
 void Cell::setData(char* data, unsigned long size)
 {
     this->data = data;
     this->data_size = size;
+    this->cell_changes.changed = true;
+    this->cell_changes.data_changed = true;
 }
 
+void Cell::clearChanges()
+{
+    memset(&this->cell_changes, 0, sizeof(this->cell_changes));
+}
 void Cell::publish()
 {
     // Send ourself

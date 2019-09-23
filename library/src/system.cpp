@@ -14,11 +14,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-
-
 using namespace Dnp;
 
- 
 System::System()
 {
     this->dnp_file = new DnpFile(this);
@@ -37,10 +34,10 @@ System::~System()
 std::fstream f;
 void System::accept_socket_thread()
 {
-    while(1)
+    while (1)
     {
         // Loop forever
-        DomainSocket* socket = this->server_socket->acceptSocket();
+        DomainSocket *socket = this->server_socket->acceptSocket();
     }
 }
 void System::host()
@@ -55,10 +52,8 @@ void System::host()
     this->server_socket = std::make_unique<ServerDomainSocket>(this);
     this->server_socket->host();
     this->thread_pool->addTask([=] {
-         accept_socket_thread();
+        accept_socket_thread();
     });
-
-
 }
 
 void start_domain_socket_client_thread();
@@ -73,7 +68,7 @@ void System::test_ping()
     this->client_socket->sendPing();
 }
 
-ClientDomainSocket* System::getClientDomainSocket()
+ClientDomainSocket *System::getClientDomainSocket()
 {
     if (this->client_socket == nullptr)
     {
@@ -97,19 +92,21 @@ void System::process_cells_waiting_for_processing()
     struct file_header header;
     this->dnp_file->getFileHeader(&header);
 
-    std::cout << "Total cells: " << header.total_cells << std::endl;
-    
     MemoryMappedCell cell(this);
     CELL_POSITION pos = header.last_cell;
-    while(this->dnp_file->iterateBackwards(&cell, &pos))
+    while (this->dnp_file->iterateBackwards(&cell, &pos))
     {
-        std::cout << "Cell id: " << cell.getId() << std::endl;
-        if (cell.getFlags() & CELL_FLAG_DATA_LOCAL)
+        CELL_FLAGS flags = cell.getFlags();
+        // We only care about cells that are not yet published
+        if (!(flags & CELL_FLAG_PUBLISHED))
         {
-            std::cout << "It works? : " << cell.getData() << std::endl;
+            // Let's mark this cell as published
+            cell.setFlag(CELL_FLAG_PUBLISHED);
+            if(!this->dnp_file->updateCell(cell))
+            {
+                throw std::logic_error("process_cells_waiting_for_processing(): failed to update cell");
+            }
         }
-        std::cout << "abcdf" << std::endl;
-        
     }
 }
 
@@ -120,9 +117,9 @@ void System::client_init_connect()
     this->client_socket->connectToServer();
 }
 
-void System::addCellForProcessing(Cell& cell)
+void System::addCellForProcessing(Cell &cell)
 {
-   this->dnp_file->createCell(&cell);
+    this->dnp_file->createCell(&cell);
 }
 
 Cell System::createCell()
@@ -132,6 +129,6 @@ Cell System::createCell()
     Cell cell(keypair.pub_key_md5_hash, this);
     cell.setPublicKey(keypair.pub_key);
     cell.setPrivateKey(keypair.private_key);
-    cell.setFlags(CELL_FLAG_NOT_PUBLISHED | CELL_FLAG_PRIVATE_KEY_HOLDER);
+    cell.setFlags(CELL_FLAG_PRIVATE_KEY_HOLDER);
     return cell;
 }

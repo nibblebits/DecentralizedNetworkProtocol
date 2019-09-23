@@ -115,6 +115,11 @@ void Network::begin()
         this->known_ips.push_back(ip_str);
     }
 
+    if (this->known_ips.empty())
+    {
+        throw std::logic_error("The system is not aware of any ip addresses to try, modify DNP file to add one");
+    }
+
     this->network_recv_thread = std::thread(&Network::network_recv_thread_operation, this);
     this->network_general_thread = std::thread(&Network::network_general_thread_operation, this);
 }
@@ -202,6 +207,32 @@ void Network::sendPacket(std::string ip, struct Packet *packet)
 }
 
 
+void Network::sendCell(Cell* cell)
+{
+    struct CellPacket cell_packet;
+    memset(&cell_packet, 0, sizeof(cell_packet));
+
+    std::string cell_id = cell->getId();
+    memcpy(&cell_packet.cell_header.cell_id, cell_id.c_str(), cell_id.size());
+    
+    cell_packet.cell_header.flags = 0;
+
+    std::string cell_public_key = cell->getPublicKey();
+    memcpy(&cell_packet.cell_header.public_key, cell_public_key.c_str, cell_public_key.size());
+
+    if (cell->hasData())
+    {
+        memcpy(cell_packet.data, cell->getData(), cell->getDataSize());
+        cell_packet.cell_header.flags |= NETWORK_CELL_FLAG_HOLDS_DATA;
+    }
+
+    struct Packet packet;
+    packet.type = PACKET_TYPE_CELL_PUBLISH;
+    packet.cell_packet = cell_packet;
+
+    broadcast(&cell_packet);
+
+}
 
 void Network::broadcast(struct Packet *packet)
 {
