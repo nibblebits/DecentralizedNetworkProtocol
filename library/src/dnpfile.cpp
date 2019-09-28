@@ -150,6 +150,13 @@ void DnpFile::seek_and_read(unsigned long pos, char *data, unsigned long size)
 
 void DnpFile::createCell(Cell *cell)
 {
+    struct cell_header tmp_header;
+    if (find(cell->getId(), tmp_header) != 0)
+    {
+        // Cell exists, so we don't want to create a duplicate let's leave
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(this->mutex);
     std::string cell_id = cell->getId();
     unsigned long size = cell->getDataSize();
@@ -426,15 +433,15 @@ bool DnpFile::_doesIpExist(std::string ip)
     while (getNextIp(ip_str, &current_index))
     {
         if (ip_str == ip)
-            return false;
+            return true;
     }
 
-    return true;
+    return false;
 }
 
 void DnpFile::addIp(std::string ip)
 {
-    std::lock_guard<std::mutex> lock(this->mutex);
+ //   std::lock_guard<std::mutex> lock(this->mutex);
     // Ip exists then we will not add it twice
     if (_doesIpExist(ip))
         return;

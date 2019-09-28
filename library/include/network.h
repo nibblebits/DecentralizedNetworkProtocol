@@ -18,6 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define NETWORK_H
 
 #include "cell.h"
+#include "config.h"
 #include "types.h"
 #include <string>
 #include <vector>
@@ -71,12 +72,13 @@ namespace Dnp
         char cell_id[MD5_HEX_SIZE];
         NETWORK_CELL_FLAGS flags; 
         char public_key[MAX_PUBLIC_KEY_SIZE];
+        size_t data_size;
     };
 
     struct CellPacket
     {
         struct CellPacket_header cell_header;
-        char data[65000 - sizeof(CellPacket_header)];
+        char data[MAX_CELL_UDP_PAYLOAD_SIZE - sizeof(CellPacket_header)];
     };
 
     struct Packet
@@ -95,7 +97,7 @@ namespace Dnp
     {
     public:
         Network();
-        Network(DnpFile* dnp_file);
+        Network(System* system);
         virtual ~Network();
 
         void begin();
@@ -115,6 +117,7 @@ namespace Dnp
         void handleInitalHelloPacket(struct sockaddr_in client_address, struct Packet* packet);
         void handleHelloRespondPacket(struct sockaddr_in client_address, struct Packet* packet);
         void handleActiveIpPacket(struct sockaddr_in client_address, struct Packet* packet);
+        void handleCellPublishPacket(struct sockaddr_in& client_address, struct Packet* packet);
 
         void createActiveIpPacket(std::string ip, struct Packet* packet);
         int get_valid_socket(struct sockaddr_in* servaddr);
@@ -138,6 +141,8 @@ namespace Dnp
 
         // Our DNP file where we will be storing data to
         DnpFile* dnp_file;
+
+        System* system;
 
     };
 }

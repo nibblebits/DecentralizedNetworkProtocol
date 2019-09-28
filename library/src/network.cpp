@@ -38,11 +38,12 @@ Network::Network()
 {
 
 }
-Network::Network(DnpFile* dnp_file)
+Network::Network(System* system)
 {
     this->is_binded = false;
     this->our_ip = "unknown ip";
-    this->dnp_file = dnp_file;
+    this->dnp_file = system->getDnpFile();
+    this->system = system;
 }
 
 Network::~Network()
@@ -112,6 +113,7 @@ void Network::begin()
     unsigned long current_index = 0;
     while (this->dnp_file->getNextIp(ip_str, &current_index))
     {
+        std::cout << "Known IP: " << ip_str << std::endl;
         this->known_ips.push_back(ip_str);
     }
 
@@ -169,6 +171,7 @@ void Network::scan()
             packet.type = PACKET_TYPE_INITIAL_HELLO;
             memcpy(packet.hello_packet.your_ip, ip.c_str(), ip.size());
             sendPacket(ip, &packet);
+            std::cout << "Sent hello packet: " << ip << std::endl;
         }
     }
 }
@@ -218,7 +221,7 @@ void Network::sendCell(Cell* cell)
     cell_packet.cell_header.flags = 0;
 
     std::string cell_public_key = cell->getPublicKey();
-    memcpy(&cell_packet.cell_header.public_key, cell_public_key.c_str, cell_public_key.size());
+    memcpy(&cell_packet.cell_header.public_key, cell_public_key.c_str(), cell_public_key.size());
 
     if (cell->hasData())
     {
@@ -229,8 +232,7 @@ void Network::sendCell(Cell* cell)
     struct Packet packet;
     packet.type = PACKET_TYPE_CELL_PUBLISH;
     packet.cell_packet = cell_packet;
-
-    broadcast(&cell_packet);
+    broadcast(&packet);
 
 }
 
@@ -238,6 +240,7 @@ void Network::broadcast(struct Packet *packet)
 {
     for (std::string ip : this->active_ips)
     {
+        std::cout << "Broadcasting to: " << ip << std::endl;
         sendPacket(ip, packet);
     }
 }
@@ -293,6 +296,10 @@ void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Pac
         handleActiveIpPacket(client_address, packet);
         break;
 
+    case PACKET_TYPE_CELL_PUBLISH:
+        handleCellPublishPacket(client_address, packet);
+    break;
+
     case PACKET_TYPE_PING:
         // Do nothing ping recieved used to keep nat open
         break;
@@ -316,6 +323,8 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct 
     packet_to_send.type = PACKET_TYPE_RESPOND_HELLO;
     memcpy(packet_to_send.hello_packet.your_ip, their_ip.c_str(), their_ip.size());
     sendPacket(their_ip, &packet_to_send);
+
+    std::cout << their_ip << std::endl;
 
     // Let's send all our known active ip's to this guy
     for (std::string ip : this->active_ips)
@@ -344,4 +353,23 @@ void Network::handleActiveIpPacket(struct sockaddr_in client_address, struct Pac
 {
     std::string active_ip = std::string(packet->active_ip_packet.ip_address, strnlen(packet->active_ip_packet.ip_address, INET_ADDRSTRLEN));
     addActiveIp(active_ip);
+}
+
+void Network::handleCellPublishPacket(struct sockaddr_in& client_address, struct Packet* packet)
+{
+    /**
+     * We have receieved a packet for cell creation, let's create that cell
+     */
+
+    struct CellPacket* cell_packet = &packet->cell_packet;
+    std::string cell_id = std::string(cell_packet->cell_header.cell_id, MD5_HEX_SIZE);
+    NETWORK_CELL_FLAGS cell_flags = cell_packet->cell_header.flags;
+    std::string public_key = std::string(cell_packet->cell_header.public_key, MAX_PUBLIC_KEY_SIZE);
+    size_t data_size = cell_packet->cell_header.data_size;
+
+    char* data = new char[data_size];
+    Cell cell(this->system);
+    cell.setId(public_key);
+    cell.setData(data, data_size);
+    this->system->addCellForProcessing(cell);
 }

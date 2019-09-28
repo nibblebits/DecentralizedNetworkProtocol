@@ -52,6 +52,8 @@ namespace Dnp
          */
         ClientDomainSocket* getClientDomainSocket();
 
+        DnpFile* getDnpFile();
+
         /**
          * Processes this DNP system instance
          */
@@ -62,7 +64,8 @@ namespace Dnp
          */
         Cell createCell();
 
-
+        void process_cells_thread_func();
+        
         /**
          * Add's this cell to the DNP file for later processing
          */
@@ -78,6 +81,8 @@ namespace Dnp
         void client_init_connect();
         ClientDomainSocket* client_socket;
         std::unique_ptr<ServerDomainSocket> server_socket;
+
+        std::thread process_cells_thread;
 
     };
 };

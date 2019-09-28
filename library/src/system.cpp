@@ -19,7 +19,7 @@ using namespace Dnp;
 System::System()
 {
     this->dnp_file = new DnpFile(this);
-    this->network = new Network(this->dnp_file);
+    this->network = new Network(this);
     this->thread_pool = new ThreadPool(MAX_TOTAL_THREADS);
     this->client_socket = nullptr;
 }
@@ -29,6 +29,11 @@ System::~System()
     delete this->dnp_file;
     delete this->network;
     delete this->thread_pool;
+
+    if (this->process_cells_thread.joinable())
+    {
+        this->process_cells_thread.join();
+    }
 }
 
 std::fstream f;
@@ -54,6 +59,8 @@ void System::host()
     this->thread_pool->addTask([=] {
         accept_socket_thread();
     });
+
+    this->process_cells_thread = std::thread(&System::process_cells_thread_func, this);
 }
 
 void start_domain_socket_client_thread();
@@ -78,11 +85,25 @@ ClientDomainSocket *System::getClientDomainSocket()
     return this->client_socket;
 }
 
+DnpFile *System::getDnpFile()
+{
+    return this->dnp_file;
+}
+
 void System::process()
 {
     if (this->client_socket != nullptr)
     {
         this->client_socket->process();
+    }
+}
+
+void System::process_cells_thread_func()
+{
+    while (true)
+    {
+        this->process_cells_waiting_for_processing();
+        sleep(1);
     }
 }
 
@@ -94,15 +115,19 @@ void System::process_cells_waiting_for_processing()
 
     MemoryMappedCell cell(this);
     CELL_POSITION pos = header.last_cell;
+
     while (this->dnp_file->iterateBackwards(&cell, &pos))
     {
         CELL_FLAGS flags = cell.getFlags();
         // We only care about cells that are not yet published
         if (!(flags & CELL_FLAG_PUBLISHED))
         {
+            // Send this cell to the network
+            this->network->sendCell(&cell);
+
             // Let's mark this cell as published
             cell.setFlag(CELL_FLAG_PUBLISHED);
-            if(!this->dnp_file->updateCell(cell))
+            if (!this->dnp_file->updateCell(cell))
             {
                 throw std::logic_error("process_cells_waiting_for_processing(): failed to update cell");
             }
@@ -119,12 +144,12 @@ void System::client_init_connect()
 
 void System::addCellForProcessing(Cell &cell)
 {
+    std::cout << "Sending cell: " << cell.getId() << std::endl;
     this->dnp_file->createCell(&cell);
 }
 
 Cell System::createCell()
 {
-
     struct rsa_keypair keypair = Rsa::generateKeypair();
     Cell cell(keypair.pub_key_md5_hash, this);
     cell.setPublicKey(keypair.pub_key);

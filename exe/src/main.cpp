@@ -11,19 +11,8 @@ void createDnpFile()
   Dnp::System dnp;
   DnpFile dnp_file(&dnp);
   dnp_file.openFile("./test.dnp");
-  Cell cell = dnp.createCell();
-  cell.setId("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-  cell.setData("Hello world", 12);
-//  cell.publish();
+  dnp_file.addIp("178.62.113.46");
   
-  
-  dnp_file.createCell(&cell);
-
-
-  MemoryMappedCell new_cell(&dnp);
-  dnp_file.loadCell("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", new_cell);
-  std::cout << new_cell.getData() << std::endl;
-  std::cout << new_cell.getPrivateKey() << std::endl;
 }
 
 void host()
