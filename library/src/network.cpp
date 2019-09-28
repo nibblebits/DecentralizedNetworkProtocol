@@ -369,7 +369,7 @@ void Network::handleCellPublishPacket(struct sockaddr_in& client_address, struct
 
     char* data = new char[data_size];
     Cell cell(this->system);
-    cell.setId(public_key);
+    cell.setId(cell_id);
     cell.setData(data, data_size);
     this->system->addCellForProcessing(cell);
 }

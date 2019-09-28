@@ -8,7 +8,7 @@
 #define DNP_TOTAL_SECTORS_PER_TABLE 10000
 #define DOMAIN_SERVER_PATH     "/tmp/dnp_server"
 #define DOMAIN_SERVER_BUFFER_LENGTH    250
-#define MAX_CELL_UDP_PAYLOAD_SIZE 65000
+#define MAX_CELL_UDP_PAYLOAD_SIZE 1500
 
 // Compiled in for now but in the future best to calculate this
 #define MAX_TOTAL_THREADS 8

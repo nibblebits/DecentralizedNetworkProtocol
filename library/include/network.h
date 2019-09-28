@@ -78,7 +78,7 @@ namespace Dnp
     struct CellPacket
     {
         struct CellPacket_header cell_header;
-        char data[MAX_CELL_UDP_PAYLOAD_SIZE - sizeof(CellPacket_header)];
+        char data[MAX_CELL_UDP_PAYLOAD_SIZE];
     };
 
     struct Packet

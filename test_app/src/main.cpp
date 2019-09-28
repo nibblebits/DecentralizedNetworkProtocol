@@ -24,5 +24,9 @@ int main()
   std::cout << "cell published" << std::endl;
   std::cout << "cell id: " << cell.getId() << std::endl;
   
+  while(1)
+  {
+    
+  }
   return 0;
 }
