@@ -123,7 +123,7 @@ bool DnpFile::iterateBackwards(MemoryMappedCell *cell, CELL_POSITION *current_po
     std::lock_guard<std::mutex> lock(this->mutex);
     struct cell_header header;
     this->loadCellHeader(&header, *current_pos);
-    cell->setId(std::string((char *)&header.id, MD5_HEX_SIZE));
+    cell->setId(std::string((char *)&header.id, sizeof(header.id)));
     cell->setFlags(header.flags);
     if (header.flags & CELL_FLAG_DATA_LOCAL)
     {
@@ -588,7 +588,7 @@ bool DnpFile::_loadCell(std::string cell_id, MemoryMappedCell &cell)
             // We found it copy over the header into the returning header
             cell.setMappedData(this->node_filename, tmp_header.data_pos, tmp_header.size);
             cell.setFlags(tmp_header.flags);
-            cell.setId(std::string((char *)tmp_header.id, MD5_HEX_SIZE));
+            cell.setId(std::string((char *)tmp_header.id, sizeof(tmp_header.id)));
 
             std::unique_ptr<char[]> public_key(new char[tmp_header.public_key_size]);
             seek_and_read(tmp_header.public_key_pos, public_key.get(), tmp_header.public_key_size);

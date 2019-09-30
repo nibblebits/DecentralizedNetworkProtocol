@@ -1,13 +1,21 @@
 #include "misc.h"
+#include "config.h"
 #include <sstream>
 #include <sys/stat.h>
-#include <sys/mman.h> 
+#include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdexcept>
-
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
+#include <openssl/rsa.h>
+#include <openssl/evp.h>
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/md5.h>
 
 std::string to_hex(const unsigned char *buf, int length)
 {
@@ -20,7 +28,14 @@ std::string to_hex(const unsigned char *buf, int length)
     return ss.str();
 }
 
-void map_data(std::string filename, off_t offset, size_t size, int& mmap_fd, void** mmap_data, size_t& mmap_size, char** data_ptr)
+std::string md5_hex(std::string str)
+{
+    unsigned char md5_out[MD5_DIGEST_LENGTH];
+    MD5((const unsigned char *)str.c_str(), str.size(), md5_out);
+    return to_hex(md5_out, MD5_DIGEST_LENGTH);
+}
+
+void map_data(std::string filename, off_t offset, size_t size, int &mmap_fd, void **mmap_data, size_t &mmap_size, char **data_ptr)
 {
     int page_size = getpagesize();
     if (offset < page_size)

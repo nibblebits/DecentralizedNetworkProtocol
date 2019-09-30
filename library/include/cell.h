@@ -66,7 +66,7 @@ public:
     void publish();
 
 protected:
-    // The numeric id of this node (id = md5(public_key))
+    // The id of this node (id = md5(public_key))
     std::string id;    
     std::string public_key;
     std::string private_key;

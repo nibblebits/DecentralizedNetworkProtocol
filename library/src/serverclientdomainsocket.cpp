@@ -12,13 +12,12 @@
 #include <iostream>
 
 using namespace Dnp;
-ServerClientDomainSocket::ServerClientDomainSocket(System* system, int client_socket) : DomainSocket(system, client_socket)
+ServerClientDomainSocket::ServerClientDomainSocket(System *system, int client_socket) : DomainSocket(system, client_socket)
 {
 }
 
 ServerClientDomainSocket::~ServerClientDomainSocket()
 {
-    
 }
 
 void ServerClientDomainSocket::connectToServer()
@@ -45,7 +44,7 @@ void ServerClientDomainSocket::connectToServer()
 
 void ServerClientDomainSocket::process()
 {
-    while(1)
+    while (1)
     {
         int length = -1;
         int rc = -1;
@@ -72,32 +71,32 @@ void ServerClientDomainSocket::process()
     }
 }
 
-void ServerClientDomainSocket::sendPacket(struct DomainPacket* packet)
+void ServerClientDomainSocket::sendPacket(struct DomainPacket *packet)
 {
     int rc = send(this->_socket, packet, sizeof(struct DomainPacket), 0);
 }
 
-void ServerClientDomainSocket::processPingPacket(struct DomainPacket* packet)
+void ServerClientDomainSocket::processPingPacket(struct DomainPacket *packet)
 {
     // Send the packet back
     packet->type = DOMAIN_PACKET_TYPE_PING_RESPONSE;
     this->sendPacket(packet);
 }
 
-void ServerClientDomainSocket::processCellPacket(struct DomainPacket* packet)
+void ServerClientDomainSocket::processCellPacket(struct DomainPacket *packet)
 {
-    struct DomainCellPublishPacket* publish_packet = &packet->publish_packet;
+    struct DomainCellPublishPacket *publish_packet = &packet->publish_packet;
     // We need to allocate some memory for this packet payload
-//  std::unique_ptr<unsigned char[]> payload(new unsigned char[publish_packet->cell_data_size]());
+    //  std::unique_ptr<unsigned char[]> payload(new unsigned char[publish_packet->cell_data_size]());
 
-    char* payload = new char[publish_packet->cell_data_size];
+    char *payload = new char[publish_packet->cell_data_size];
     // We need to read the data of cell_data_size as this is the cell packet payload
     read_blocked(payload, publish_packet->cell_data_size);
 
     // Reconstruct the cell
     Cell cell(publish_packet->cell_id, this->getSystem());
-    cell.setPublicKey(std::string(publish_packet->public_key, MAX_PUBLIC_KEY_SIZE));
-    cell.setPrivateKey(std::string(publish_packet->private_key, MAX_PRIVATE_KEY_SIZE));
+    cell.setPublicKey(std::string(publish_packet->public_key, strnlen(publish_packet->public_key, MAX_PUBLIC_KEY_SIZE)));
+    cell.setPrivateKey(std::string(publish_packet->private_key, strnlen(publish_packet->private_key, MAX_PRIVATE_KEY_SIZE)));
     cell.setData(payload, publish_packet->cell_data_size);
 
     struct DomainPacket res_packet;
@@ -111,27 +110,26 @@ void ServerClientDomainSocket::processCellPacket(struct DomainPacket* packet)
         // This was succesful the cell has been added for processing
         res_packet.publish_response_packet.state = DOMAIN_PUBLISH_PACKET_STATE_OK_PROCESSING;
     }
-    catch(std::exception& ex)
+    catch (std::exception &ex)
     {
         res_packet.publish_response_packet.state = DOMAIN_PUBLISH_PACKET_STATE_PUBLISH_FAILED;
     }
 
     // Let's send our response
     this->sendPacket(&res_packet);
-    
 }
 
-void ServerClientDomainSocket::processIncomingDomainPacket(struct DomainPacket* packet)
+void ServerClientDomainSocket::processIncomingDomainPacket(struct DomainPacket *packet)
 {
     // Ok we have an incoming packet let's process it
-    switch(packet->type)
+    switch (packet->type)
     {
-        case DOMAIN_PACKET_TYPE_PING:
-            this->processPingPacket(packet);
+    case DOMAIN_PACKET_TYPE_PING:
+        this->processPingPacket(packet);
         break;
 
-        case DOMAIN_PACKET_TYPE_CELL_PUBLISH:
-            this->processCellPacket(packet);
+    case DOMAIN_PACKET_TYPE_CELL_PUBLISH:
+        this->processCellPacket(packet);
         break;
     }
 }

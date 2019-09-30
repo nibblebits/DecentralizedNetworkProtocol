@@ -70,7 +70,7 @@ namespace Dnp
     struct CellPacket_header
     {
         char cell_id[MD5_HEX_SIZE];
-        NETWORK_CELL_FLAGS flags; 
+        NETWORK_CELL_FLAGS flags;
         char public_key[MAX_PUBLIC_KEY_SIZE];
         size_t data_size;
     };

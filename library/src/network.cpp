@@ -16,8 +16,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
 #include "network.h"
+#include "config.h"
 #include "dnpfile.h"
-
+#include "misc.h"
 #include <iostream>
 
 #include <sstream>
@@ -221,7 +222,11 @@ void Network::sendCell(Cell* cell)
     cell_packet.cell_header.flags = 0;
 
     std::string cell_public_key = cell->getPublicKey();
-    memcpy(&cell_packet.cell_header.public_key, cell_public_key.c_str(), cell_public_key.size());
+
+    if (md5_hex(cell_public_key) != cell_id)
+    {
+        throw std::logic_error("Illegal public key or id, public key md5 hashed does not match cell id, illegal cell!");
+    }
 
     if (cell->hasData())
     {
@@ -365,9 +370,9 @@ void Network::handleCellPublishPacket(struct sockaddr_in& client_address, struct
      */
 
     struct CellPacket* cell_packet = &packet->cell_packet;
-    std::string cell_id = std::string(cell_packet->cell_header.cell_id, MD5_HEX_SIZE);
+    std::string cell_id = std::string(cell_packet->cell_header.cell_id, sizeof(cell_packet->cell_header.cell_id));
     NETWORK_CELL_FLAGS cell_flags = cell_packet->cell_header.flags;
-    std::string public_key = std::string(cell_packet->cell_header.public_key, MAX_PUBLIC_KEY_SIZE);
+    std::string public_key = std::string(cell_packet->cell_header.public_key, sizeof(cell_packet->cell_header.public_key));
     size_t data_size = cell_packet->cell_header.data_size;
 
     char* data = new char[data_size];

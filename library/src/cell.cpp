@@ -26,6 +26,7 @@ Cell::Cell(Dnp::System *system)
     this->system = system;
     this->data = nullptr;
     this->data_size = -1;
+    this->flags = 0;
     this->clearChanges();
 }
 Cell::Cell(std::string id, System* system) : Cell(system)
