@@ -96,6 +96,8 @@ void ServerClientDomainSocket::processCellPacket(struct DomainPacket* packet)
 
     // Reconstruct the cell
     Cell cell(publish_packet->cell_id, this->getSystem());
+    cell.setPublicKey(std::string(publish_packet->public_key, MAX_PUBLIC_KEY_SIZE));
+    cell.setPrivateKey(std::string(publish_packet->private_key, MAX_PRIVATE_KEY_SIZE));
     cell.setData(payload, publish_packet->cell_data_size);
 
     struct DomainPacket res_packet;

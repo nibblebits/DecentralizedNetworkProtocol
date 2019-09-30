@@ -31,10 +31,16 @@ struct DomainPingPacket
 };
 
 
+/**
+ * Both public and private key is included because people who publish cells should already be the owner!
+ */
 struct DomainCellPublishPacket
 {
     char cell_id[MD5_HEX_SIZE];
+    char public_key[MAX_PUBLIC_KEY_SIZE];
+    char private_key[MAX_PRIVATE_KEY_SIZE];
     unsigned long cell_data_size;
+
     // Cell data follows after receving this packet, read cell_data_size x bytes
 };
 

@@ -11,17 +11,16 @@
 
 using namespace Dnp;
 
-ClientDomainSocket::ClientDomainSocket(System* system) : DomainSocket(system)
+ClientDomainSocket::ClientDomainSocket(System *system) : DomainSocket(system)
 {
 }
 
-ClientDomainSocket::ClientDomainSocket(System* system, int client_socket) : DomainSocket(system, client_socket)
+ClientDomainSocket::ClientDomainSocket(System *system, int client_socket) : DomainSocket(system, client_socket)
 {
 }
 
 ClientDomainSocket::~ClientDomainSocket()
 {
-  
 }
 
 void ClientDomainSocket::sendPing()
@@ -41,7 +40,6 @@ void ClientDomainSocket::sendPing()
     {
         throw std::logic_error("Server responded with ping response but payload does not much our own.");
     }
-
 }
 
 void ClientDomainSocket::sendPacket(struct DomainPacket *packet)
@@ -53,12 +51,30 @@ void ClientDomainSocket::sendPacket(struct DomainPacket *packet)
     }
 }
 
-void ClientDomainSocket::sendCell(Cell* cell)
+void ClientDomainSocket::sendCell(Cell *cell)
 {
+    std::string public_key = cell->getPublicKey();
+    if (public_key.empty() || public_key.size() > MAX_PUBLIC_KEY_SIZE)
+    {
+        throw std::logic_error("Public key out of bounds or not provided!");
+    }
+    
+    std::string private_key = cell->getPrivateKey();
+    if (private_key.empty() || private_key.size() > MAX_PRIVATE_KEY_SIZE)
+    {
+        throw std::logic_error("Private key out of bounds or not provided!");
+    }
+
     struct DomainPacket packet;
     packet.type = DOMAIN_PACKET_TYPE_CELL_PUBLISH;
+
     memcpy(packet.publish_packet.cell_id, cell->getId().c_str(), MD5_HEX_SIZE);
+    memcpy(packet.publish_packet.public_key, public_key.c_str(), public_key.size());
+    memcpy(packet.publish_packet.private_key, private_key.c_str(), private_key.size());
+
     packet.publish_packet.cell_data_size = cell->getDataSize();
+
+    // Let's set the public key
     this->sendPacket(&packet);
 
     // Now we sent the packet the server expects the payload
@@ -118,7 +134,6 @@ void ClientDomainSocket::getNextPacket(struct DomainPacket *packet)
 
     length = sizeof(struct DomainPacket);
     read_blocked(packet, sizeof(struct DomainPacket));
- 
+
     memcpy(packet, packet, sizeof(struct DomainPacket));
 }
-
