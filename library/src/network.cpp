@@ -226,6 +226,7 @@ void Network::sendCell(Cell* cell)
     if (cell->hasData())
     {
         memcpy(cell_packet.data, cell->getData(), cell->getDataSize());
+        cell_packet.cell_header.data_size = cell->getDataSize();
         cell_packet.cell_header.flags |= NETWORK_CELL_FLAG_HOLDS_DATA;
     }
 
