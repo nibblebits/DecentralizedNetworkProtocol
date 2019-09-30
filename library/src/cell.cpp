@@ -118,6 +118,7 @@ void Cell::setData(char* data, unsigned long size)
     this->data_size = size;
     this->cell_changes.changed = true;
     this->cell_changes.data_changed = true;
+    this->setFlag(CELL_FLAG_DATA_LOCAL);
 }
 
 void Cell::clearChanges()
