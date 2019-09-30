@@ -102,7 +102,7 @@ void System::process_cells_thread_func()
 {
     while (true)
     {
-        this->process_cells_waiting_for_processing();
+        //this->process_cells_waiting_for_processing();
         sleep(1);
     }
 }
@@ -146,6 +146,7 @@ void System::addCellForProcessing(Cell &cell)
 {
     std::cout << "Sending cell: " << cell.getId() << std::endl;
     this->dnp_file->createCell(&cell);
+    process_cells_waiting_for_processing();
 }
 
 Cell System::createCell()
