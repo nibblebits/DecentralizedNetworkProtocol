@@ -215,17 +215,23 @@ void Network::sendCell(Cell *cell)
     std::string cell_id = cell->getId();
     memcpy(&cell_packet.cell_header.cell_id, cell_id.c_str(), cell_id.size());
 
-    cell_packet.cell_header.flags = 0;
-
     std::string cell_public_key = cell->getPublicKey();
     if (cell_public_key == "")
     {
         throw std::logic_error("NULL public key provided");
     }
 
+    if (cell_public_key.size() > MAX_PUBLIC_KEY_SIZE)
+    {
+        throw std::logic_error("public key is too large!");
+    }
+
+    memcpy(&cell_packet.cell_header.public_key, cell_public_key.c_str(), cell_public_key.size());
+    cell_packet.cell_header.flags = 0;
+
     if (md5_hex(cell_public_key) != cell_id)
     {
-    //    throw std::logic_error("Illegal public key or id, public key md5 hashed does not match cell id, illegal cell! public key=" + cell_public_key + ", cell_id=" + cell_id);
+        //    throw std::logic_error("Illegal public key or id, public key md5 hashed does not match cell id, illegal cell! public key=" + cell_public_key + ", cell_id=" + cell_id);
     }
 
     if (cell->hasData())
