@@ -123,6 +123,9 @@ bool DnpFile::iterateBackwards(MemoryMappedCell *cell, CELL_POSITION *current_po
     std::lock_guard<std::mutex> lock(this->mutex);
     struct cell_header header;
     this->loadCellHeader(&header, *current_pos);
+    char pub_key_buf[MAX_PUBLIC_KEY_SIZE];
+    this->seek_and_read(header.public_key_pos, pub_key_buf, header.public_key_size);
+    cell->setPublicKey(std::string((char*) pub_key_buf, header.public_key_size));
     cell->setId(std::string((char *)&header.id, sizeof(header.id)));
     cell->setFlags(header.flags);
     if (header.flags & CELL_FLAG_DATA_LOCAL)

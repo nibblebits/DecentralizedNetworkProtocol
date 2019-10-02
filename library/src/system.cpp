@@ -102,7 +102,7 @@ void System::process_cells_thread_func()
 {
     while (true)
     {
-        //this->process_cells_waiting_for_processing();
+        this->process_cells_waiting_for_processing();
         sleep(1);
     }
 }
@@ -145,6 +145,7 @@ void System::client_init_connect()
 void System::addCellForProcessing(Cell &cell)
 {
     this->dnp_file->createCell(&cell);
+    this->process_cells_waiting_for_processing();
 }
 
 Cell System::createCell()
