@@ -144,9 +144,7 @@ void System::client_init_connect()
 
 void System::addCellForProcessing(Cell &cell)
 {
-    std::cout << "Sending cell: " << cell.getId() << std::endl;
     this->dnp_file->createCell(&cell);
-    process_cells_waiting_for_processing();
 }
 
 Cell System::createCell()

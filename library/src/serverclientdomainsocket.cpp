@@ -112,6 +112,7 @@ void ServerClientDomainSocket::processCellPacket(struct DomainPacket *packet)
     }
     catch (std::exception &ex)
     {
+        std::cout << "Exception: " << ex.what() << std::endl;
         res_packet.publish_response_packet.state = DOMAIN_PUBLISH_PACKET_STATE_PUBLISH_FAILED;
     }
 

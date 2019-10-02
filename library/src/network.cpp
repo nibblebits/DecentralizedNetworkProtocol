@@ -37,9 +37,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 using namespace Dnp;
 Network::Network()
 {
-
 }
-Network::Network(System* system)
+Network::Network(System *system)
 {
     this->is_binded = false;
     this->our_ip = "unknown ip";
@@ -127,7 +126,6 @@ void Network::begin()
     this->network_general_thread = std::thread(&Network::network_general_thread_operation, this);
 }
 
-
 int Network::get_valid_socket(struct sockaddr_in *servaddr)
 {
 
@@ -159,7 +157,6 @@ int Network::get_valid_socket(struct sockaddr_in *servaddr)
 
     return s;
 }
-
 
 void Network::scan()
 {
@@ -210,22 +207,25 @@ void Network::sendPacket(std::string ip, struct Packet *packet)
     }
 }
 
-
-void Network::sendCell(Cell* cell)
+void Network::sendCell(Cell *cell)
 {
     struct CellPacket cell_packet;
     memset(&cell_packet, 0, sizeof(cell_packet));
 
     std::string cell_id = cell->getId();
     memcpy(&cell_packet.cell_header.cell_id, cell_id.c_str(), cell_id.size());
-    
+
     cell_packet.cell_header.flags = 0;
 
     std::string cell_public_key = cell->getPublicKey();
+    if (cell_public_key == "")
+    {
+        throw std::logic_error("NULL public key provided");
+    }
 
     if (md5_hex(cell_public_key) != cell_id)
     {
-        throw std::logic_error("Illegal public key or id, public key md5 hashed does not match cell id, illegal cell!");
+        throw std::logic_error("Illegal public key or id, public key md5 hashed does not match cell id, illegal cell! public key=" + cell_public_key + ", cell_id=" + cell_id);
     }
 
     if (cell->hasData())
@@ -239,7 +239,6 @@ void Network::sendCell(Cell* cell)
     packet.type = PACKET_TYPE_CELL_PUBLISH;
     packet.cell_packet = cell_packet;
     broadcast(&packet);
-
 }
 
 void Network::broadcast(struct Packet *packet)
@@ -288,27 +287,35 @@ void Network::createActiveIpPacket(std::string ip, struct Packet *packet)
 
 void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
-    switch (packet->type)
+    try
     {
-    case PACKET_TYPE_INITIAL_HELLO:
-        handleInitalHelloPacket(client_address, packet);
-        break;
+        switch (packet->type)
+        {
+        case PACKET_TYPE_INITIAL_HELLO:
+            handleInitalHelloPacket(client_address, packet);
+            break;
 
-    case PACKET_TYPE_RESPOND_HELLO:
-        handleHelloRespondPacket(client_address, packet);
-        break;
+        case PACKET_TYPE_RESPOND_HELLO:
+            handleHelloRespondPacket(client_address, packet);
+            break;
 
-    case PACKET_TYPE_ACTIVE_IP:
-        handleActiveIpPacket(client_address, packet);
-        break;
+        case PACKET_TYPE_ACTIVE_IP:
+            handleActiveIpPacket(client_address, packet);
+            break;
 
-    case PACKET_TYPE_CELL_PUBLISH:
-        handleCellPublishPacket(client_address, packet);
-    break;
+        case PACKET_TYPE_CELL_PUBLISH:
+            handleCellPublishPacket(client_address, packet);
+            break;
 
-    case PACKET_TYPE_PING:
-        // Do nothing ping recieved used to keep nat open
-        break;
+        case PACKET_TYPE_PING:
+            // Do nothing ping recieved used to keep nat open
+            break;
+        }
+    }
+    catch (std::exception &ex)
+    {
+        // IO out for now but this should log into an error log internal logging mechnism
+        std::cout << ex.what() << std::endl;
     }
 }
 
@@ -342,7 +349,6 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct 
     addActiveIp(their_ip);
 }
 
-
 void Network::handleHelloRespondPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
     char client_ip[INET_ADDRSTRLEN];
@@ -361,21 +367,25 @@ void Network::handleActiveIpPacket(struct sockaddr_in client_address, struct Pac
     addActiveIp(active_ip);
 }
 
-
-
-void Network::handleCellPublishPacket(struct sockaddr_in& client_address, struct Packet* packet)
+void Network::handleCellPublishPacket(struct sockaddr_in &client_address, struct Packet *packet)
 {
     /**
      * We have receieved a packet for cell creation, let's create that cell
      */
 
-    struct CellPacket* cell_packet = &packet->cell_packet;
+    struct CellPacket *cell_packet = &packet->cell_packet;
     std::string cell_id = std::string(cell_packet->cell_header.cell_id, sizeof(cell_packet->cell_header.cell_id));
     NETWORK_CELL_FLAGS cell_flags = cell_packet->cell_header.flags;
     std::string public_key = std::string(cell_packet->cell_header.public_key, sizeof(cell_packet->cell_header.public_key));
     size_t data_size = cell_packet->cell_header.data_size;
 
-    char* data = new char[data_size];
+    // Let's make sure that this public key hashes into the cell id as otherwise this is illegal!
+    if (md5_hex(public_key) != cell_id)
+    {
+        throw std::logic_error("Illegal public key or id, public key md5 hashed does not match cell id, illegal cell! public key=" + public_key + ", cell_id=" + cell_id);
+    }
+
+    char *data = new char[data_size];
     Cell cell(this->system);
     cell.setId(cell_id);
     cell.setData(data, data_size);
