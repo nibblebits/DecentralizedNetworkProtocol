@@ -20,6 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "misc.h"
 #include "crypto/rsa.h"
 #include <memory.h>
+#include <iostream> 
 
 using namespace Dnp;
 
@@ -146,6 +147,7 @@ void Cell::setData(char *data, unsigned long size)
         std::string encrypted_hash = "";
         Rsa::encrypt_private(this->private_key, hash, encrypted_hash);
         this->setEncryptedDataHash(encrypted_hash); 
+        std::cout << "Encrypted hash size: " << encrypted_hash.size() << std::endl;
     }
     this->setFlag(CELL_FLAG_DATA_LOCAL);
 }

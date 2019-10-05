@@ -4,6 +4,7 @@
 #include "network.h"
 #include "threadpool.h"
 #include "mmapcell.h"
+#include "dnpexception.h"
 #include "crypto/rsa.h"
 #include <iostream>
 #include <stdio.h>
@@ -102,11 +103,45 @@ void System::process_cells_thread_func()
 {
     while (true)
     {
-        this->process_cells_waiting_for_processing();
-        sleep(1);
+        try
+        {
+            this->process_cells_waiting_for_processing();
+            sleep(1);
+        }
+        catch (std::exception &ex)
+        {
+            std::cerr << "Failed to process cells: " << ex.what() << std::endl;
+        }
     }
 }
 
+void System::handle_cell_for_processing(MemoryMappedCell &cell)
+{
+    try
+    {
+        // Send this cell to the network
+        this->network->sendCell(&cell);
+    }
+    catch (Dnp::DnpException &e)
+    {
+        switch (e.getExceptionType())
+        {
+        case DNP_EXCEPTION_ILLEGAL_CELL:
+            // We have an illegal cell so let's delete it from the DNP file
+            std::cout << this->dnp_file->deleteCell(cell.getId()) << std::endl;
+            while(1) { }
+            break;
+        }
+        std::cerr << e.what() << '\n';
+    }
+
+    // Let's mark this cell as published
+    cell.setFlag(CELL_FLAG_PUBLISHED);
+    if (!this->dnp_file->updateCell(cell))
+    {
+        throw std::logic_error("process_cells_waiting_for_processing(): failed to update cell");
+    }
+}
 void System::process_cells_waiting_for_processing()
 {
     // Let's read from the file and find cells that are waiting to be published
@@ -122,15 +157,7 @@ void System::process_cells_waiting_for_processing()
         // We only care about cells that are not yet published
         if (!(flags & CELL_FLAG_PUBLISHED))
         {
-            // Send this cell to the network
-            this->network->sendCell(&cell);
-
-            // Let's mark this cell as published
-            cell.setFlag(CELL_FLAG_PUBLISHED);
-            if (!this->dnp_file->updateCell(cell))
-            {
-                throw std::logic_error("process_cells_waiting_for_processing(): failed to update cell");
-            }
+            handle_cell_for_processing(cell);
         }
     }
 }
@@ -144,9 +171,15 @@ void System::client_init_connect()
 
 void System::addCellForProcessing(Cell &cell)
 {
-    this->dnp_file->createCell(&cell);
-    this->process_cells_waiting_for_processing();
-}
+    try
+    {
+        this->dnp_file->createCell(&cell);
+    }
+    catch(const Dnp::DnpException& e)
+    {
+        std::cerr << "Failed to add cell for processing: " << e.what() << std::endl;
+    }
+}   
 
 Cell System::createCell()
 {

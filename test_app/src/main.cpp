@@ -17,7 +17,6 @@ int main()
   //std::cout << "testing" << std::endl;
   
   Cell cell = dnp.createCell();
-  cell.setId("484837");
   cell.setData("testing 4444", sizeof("testing 4444"));
   cell.publish();
 

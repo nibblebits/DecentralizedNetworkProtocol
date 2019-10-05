@@ -47,7 +47,6 @@ struct data_table_header
     unsigned int total_sectors;
 };
 
-
 struct cell_header
 {
     unsigned char id[MD5_HEX_SIZE];
@@ -88,32 +87,34 @@ class System;
 class DnpFile
 {
 public:
-    DnpFile(System* system);
+    DnpFile(System *system);
     virtual ~DnpFile();
     void openFile(std::string filename);
     std::string getNodeFilename();
 
-    bool getFileHeader(struct file_header* header);
-    void createCell(Cell* cell);
+    bool getFileHeader(struct file_header *header);
+    void createCell(Cell *cell);
     bool doesIpExist(std::string ip);
     void addIp(std::string ip);
-    bool getNextIp(std::string& ip_str, unsigned long* current_index, unsigned long ip_block_pos=-1);
-    bool loadCell(std::string cell_id, MemoryMappedCell& cell);
-    bool updateCell(MemoryMappedCell& cell);
+    bool getNextIp(std::string &ip_str, unsigned long *current_index, unsigned long ip_block_pos = -1);
+    bool loadCell(std::string cell_id, MemoryMappedCell &cell);
+    bool deleteCell(const std::string &cell_id);
+    bool updateCell(MemoryMappedCell &cell);
 
     /**
      * 
      * Returns the cell at the current_pos then sets the current_pos to the previous cell from the cell just loaded
      */
-    bool iterateBackwards(MemoryMappedCell* cell, CELL_POSITION* current_pos);
+    bool iterateBackwards(MemoryMappedCell *cell, CELL_POSITION *current_pos);
 
 private:
-    off_t find(std::string cell_id, struct cell_header& tmp_header);
+    off_t find(std::string cell_id, struct cell_header &tmp_header);
     void loadCellHeader(struct cell_header *cell_header, CELL_POSITION position);
-    void loadCellFromHeader(struct cell_header& cell_header, MemoryMappedCell& cell);
+    void loadCellFromHeader(struct cell_header &cell_header, MemoryMappedCell &cell);
     bool _doesIpExist(std::string ip);
-    bool _loadCell(std::string cell_id, MemoryMappedCell& cell);
-    bool _updateCell(MemoryMappedCell& cell);
+    bool _loadCell(std::string cell_id, MemoryMappedCell &cell);
+    bool _deleteCell(const std::string &cell_id);
+    bool _updateCell(MemoryMappedCell &cell);
     void createCellTable();
     void loadFile(std::string filename);
     void setupFileAndOpen(std::string filename);
@@ -147,7 +148,7 @@ private:
              * ensure that this is an ip block or have disastrous results
              */
     void writeIpToIpBlock(unsigned long pos, std::string ip);
-    
+
     /**
      * Creates the first ip block in the system, should be called when setting up DNP file for the first time
      */
@@ -167,7 +168,7 @@ private:
     /**
      * Writes the provided ip block header header to the disk at the provided position
      */
-    void writeIpBlockHeaderToDisk(unsigned long pos, struct ip_block_header& header);
+    void writeIpBlockHeaderToDisk(unsigned long pos, struct ip_block_header &header);
 
     /**
              * Writes the current file header in memory to disk
@@ -186,20 +187,30 @@ private:
     unsigned long getFreePositionForDataOrThrow(unsigned long size);
 
     /**
+     * Seeks to the file object to the data table in the DNP file
+     */
+    inline void seek_to_data_table();
+
+    void markInDataTableForPosition(off_t pos, size_t size, char b);
+
+    /**
              * Marks the data as non free in the data table
              */
-    void markDataTaken(unsigned long pos, unsigned long size);
+    void markDataTaken(off_t pos, size_t size);
+    /**
+     * Marks the data as free so that it can be overwritten by new writes
+     */
+    void markDataFree(off_t pos, size_t size);
 
+    void seek_and_write(unsigned long pos, const char *data, unsigned long size);
+    void seek_and_read(unsigned long pos, char *data, unsigned long size);
 
-    void seek_and_write(unsigned long pos, const char* data, unsigned long size);
-    void seek_and_read(unsigned long pos, char* data, unsigned long size);
-    
 protected:
     std::mutex mutex;
     std::fstream node_file;
     std::string node_filename;
     struct file_header loaded_file_header;
-    System* system;
+    System *system;
 };
 }; // namespace Dnp
 

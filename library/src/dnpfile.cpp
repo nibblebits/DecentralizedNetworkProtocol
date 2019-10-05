@@ -1,6 +1,7 @@
 #include "dnpfile.h"
 #include "types.h"
 #include "memory.h"
+#include "dnpexception.h"
 #include "system.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -212,7 +213,11 @@ void DnpFile::createCell(Cell *cell)
     // Now create and write the cell header
     struct cell_header cell_header;
     initCellHeader(&cell_header);
-    memcpy(cell_header.id, cell_id.c_str(), MD5_HEX_SIZE);
+    if (cell_id.size() != MD5_HEX_SIZE)
+    {
+        throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "Provided cell has an illegal cell id, size does not equal MD5_HEX_SIZE: " + std::to_string(MD5_HEX_SIZE));
+    }
+    memcpy(cell_header.id, cell_id.c_str(), cell_id.size());
 
     cell_header.size = size;
     cell_header.flags = flags;
@@ -303,10 +308,15 @@ unsigned long DnpFile::getFreePositionForDataOrThrow(unsigned long size)
     return pos;
 }
 
-void DnpFile::markDataTaken(unsigned long pos, unsigned long size)
+void DnpFile::seek_to_data_table()
+{
+    this->node_file.seekp(sizeof(struct file_header), this->node_file.beg);
+}
+
+void DnpFile::markInDataTableForPosition(off_t pos, size_t size, char b)
 {
     // Position us just after the file header, so that we point at the data table
-    this->node_file.seekp(sizeof(struct file_header), this->node_file.beg);
+    this->seek_to_data_table();
 
     struct data_table_header table_header;
     this->node_file.read((char *)&table_header, sizeof(table_header));
@@ -331,8 +341,18 @@ void DnpFile::markDataTaken(unsigned long pos, unsigned long size)
     this->node_file.seekp(sec_no_pos, this->node_file.beg);
     for (int i = 0; i < total_sectors; i++)
     {
-        this->node_file.put(DNP_SECTOR_TAKEN);
+        this->node_file.put(b);
     }
+}
+
+void DnpFile::markDataTaken(off_t pos, size_t size)
+{
+    this->markInDataTableForPosition(pos, size, DNP_SECTOR_TAKEN);
+}
+
+void DnpFile::markDataFree(off_t pos, size_t size)
+{
+    this->markInDataTableForPosition(pos, size, DNP_SECTOR_FREE);
 }
 
 struct ip_block_header DnpFile::readIpBlockHeader(unsigned long pos)
@@ -586,7 +606,14 @@ void DnpFile::loadCellFromHeader(struct cell_header &cell_header, MemoryMappedCe
 {
 
     // We found it copy over the header into the returning header
-    cell.setMappedData(this->node_filename, cell_header.data_pos, cell_header.size);
+    if (cell_header.flags & CELL_FLAG_DATA_LOCAL)
+    {
+        cell.setMappedData(this->node_filename, cell_header.data_pos, cell_header.size);
+        std::unique_ptr<char[]> encrypted_data_hash = std::make_unique<char[]>(cell_header.encrypted_data_hash_size);
+        this->seek_and_read(cell_header.encrypted_data_hash_pos, encrypted_data_hash.get(), cell_header.encrypted_data_hash_size);
+        cell.setEncryptedDataHash(std::string((char *)encrypted_data_hash.get(), cell_header.encrypted_data_hash_size));
+    }
+
     cell.setFlags(cell_header.flags);
     cell.setId(std::string((char *)cell_header.id, sizeof(cell_header.id)));
 
@@ -601,10 +628,6 @@ void DnpFile::loadCellFromHeader(struct cell_header &cell_header, MemoryMappedCe
         cell.setPrivateKey(std::string((char *)private_key.get(), cell_header.private_key_size));
     }
 
-    std::unique_ptr<char[]> encrypted_data_hash = std::make_unique<char[]>(cell_header.encrypted_data_hash_size);
-    this->seek_and_read(cell_header.encrypted_data_hash_pos, encrypted_data_hash.get(), cell_header.encrypted_data_hash_size);
-    cell.setEncryptedDataHash(std::string((char *)encrypted_data_hash.get(), cell_header.encrypted_data_hash_size));
-
     // Clear the changes of this cell as its fully updated
     cell.clearChanges();
 }
@@ -613,23 +636,54 @@ bool DnpFile::_loadCell(std::string cell_id, MemoryMappedCell &cell)
 {
     // Read in the cell header
     struct cell_header tmp_header;
-    unsigned long current_pos = this->loaded_file_header.first_cell;
-    while (current_pos != 0)
-    {
-        loadCellHeader(&tmp_header, current_pos);
-        if (memcmp(tmp_header.id, cell_id.c_str(), MD5_HEX_SIZE) == 0)
-        {
-            loadCellFromHeader(tmp_header, cell);
-        }
+    if (this->find(cell_id, tmp_header) == 0)
+        return false;
 
-        current_pos = tmp_header.next_cell_pos;
-    }
-
-    return false;
+    loadCellFromHeader(tmp_header, cell);
+    return true;
 }
 
 bool DnpFile::loadCell(std::string cell_id, MemoryMappedCell &cell)
 {
     std::lock_guard<std::mutex> lock(this->mutex);
     this->_loadCell(cell_id, cell);
+}
+
+bool DnpFile::_deleteCell(const std::string &cell_id)
+{
+    struct cell_header tmp_header;
+    off_t header_offset = find(cell_id, tmp_header);
+    if (!header_offset)
+    {
+        std::cout << "Failed to delete " << cell_id << std::endl;
+        return false;
+    }
+    if (tmp_header.flags & CELL_FLAG_DATA_LOCAL)
+    {
+        this->markDataFree(tmp_header.data_pos, tmp_header.size);
+        this->markDataFree(tmp_header.encrypted_data_hash_pos, tmp_header.size);
+        this->loaded_file_header.total_cells -= 1;
+        if (this->loaded_file_header.first_cell == header_offset)
+        {
+            this->loaded_file_header.first_cell = 0;
+        }
+    }
+
+    if (tmp_header.flags & CELL_FLAG_PRIVATE_KEY_HOLDER)
+    {
+        this->markDataFree(tmp_header.private_key_pos, tmp_header.private_key_size);
+    }
+
+    this->markDataFree(tmp_header.public_key_pos, tmp_header.public_key_size);
+
+    // Rewrite the file header to update any major changes to the file
+    this->writeFileHeader();
+
+    return true;
+}
+
+bool DnpFile::deleteCell(const std::string &cell_id)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->_deleteCell(cell_id);
 }

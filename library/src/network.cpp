@@ -18,7 +18,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "network.h"
 #include "config.h"
 #include "dnpfile.h"
+#include "dnpexception.h"
 #include "misc.h"
+#include "crypto/rsa.h"
 #include <iostream>
 
 #include <sstream>
@@ -218,12 +220,12 @@ void Network::sendCell(Cell *cell)
     std::string cell_public_key = cell->getPublicKey();
     if (cell_public_key == "")
     {
-        throw std::logic_error("NULL public key provided");
+        throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "NULL public key was provided");
     }
 
     if (cell_public_key.size() > MAX_PUBLIC_KEY_SIZE)
     {
-        throw std::logic_error("public key is too large!");
+        throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "Public key is too large and cannot be accepted");
     }
 
     memcpy(&cell_packet.cell_header.public_key, cell_public_key.c_str(), cell_public_key.size());
@@ -231,14 +233,26 @@ void Network::sendCell(Cell *cell)
 
     if (md5_hex(cell_public_key) != cell_id)
     {
-         throw std::logic_error("Illegal public key or id, public key md5 hashed does not match cell id, illegal cell! public key=" + cell_public_key + ", cell_id=" + cell_id);
+        throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "Illegal public key or id, public key md5 hashed does not match cell id, illegal cell! public key=" + cell_public_key + ", cell_id=" + cell_id);
     }
 
     if (cell->hasData())
     {
-        memcpy(cell_packet.data, cell->getData(), cell->getDataSize());
-        cell_packet.cell_header.data_size = cell->getDataSize();
+        std::string data_str = cell->getData();
+        if (data_str.size() > MAX_CELL_UDP_PAYLOAD_SIZE)
+        {
+            throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "Illegal data size, currently DNP supports only UDP so there is a maximum data size of: " + std::to_string(MAX_CELL_UDP_PAYLOAD_SIZE));
+        }
+        memcpy(cell_packet.data, data_str.c_str(), data_str.size());
+        cell_packet.cell_header.data_size = data_str.size();
         cell_packet.cell_header.flags |= NETWORK_CELL_FLAG_HOLDS_DATA;
+
+        std::string encrypted_hash = cell->getEncryptedHash();
+        if (encrypted_hash.size() != MAX_ENCRYPTED_MD5_DATA_HASH_SIZE)
+        {
+            throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "Illegal encrypted hash, its not equal to the required size of:  " + std::to_string(MAX_ENCRYPTED_MD5_DATA_HASH_SIZE));
+        }
+        memcpy(&cell_packet.cell_header.encrypted_md5_data_hash, encrypted_hash.c_str(), encrypted_hash.size());
     }
 
     struct Packet packet;
@@ -380,10 +394,18 @@ void Network::handleCellPublishPacket(struct sockaddr_in &client_address, struct
      */
 
     struct CellPacket *cell_packet = &packet->cell_packet;
+    if (!(cell_packet->cell_header.flags & NETWORK_CELL_FLAG_HOLDS_DATA))
+    {
+        throw Dnp::DnpException(DNP_EXCEPTION_UNSUPPORTED, "The cell passed to us has no data, currently we do not process packets without data");
+    }
     std::string cell_id = std::string(cell_packet->cell_header.cell_id, sizeof(cell_packet->cell_header.cell_id));
     NETWORK_CELL_FLAGS cell_flags = cell_packet->cell_header.flags;
     std::string public_key = std::string(cell_packet->cell_header.public_key, sizeof(cell_packet->cell_header.public_key));
     size_t data_size = cell_packet->cell_header.data_size;
+    if (data_size > MAX_CELL_UDP_PAYLOAD_SIZE)
+    {
+        throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "Data size exceeds legal amount: " + std::to_string(MAX_CELL_UDP_PAYLOAD_SIZE));
+    }
 
     // Let's make sure that this public key hashes into the cell id as otherwise this is illegal!
     if (md5_hex(public_key) != cell_id)
@@ -391,7 +413,25 @@ void Network::handleCellPublishPacket(struct sockaddr_in &client_address, struct
         throw std::logic_error("Illegal public key or id, public key md5 hashed does not match cell id, illegal cell! public key=" + public_key + ", cell_id=" + cell_id);
     }
 
+    std::string encrypted_md5_data_hash = std::string(cell_packet->cell_header.encrypted_md5_data_hash, MAX_ENCRYPTED_MD5_DATA_HASH_SIZE);
+    std::string decrypted_md5_data_hash = "";
+    try
+    {
+        Rsa::decrypt_public(public_key, encrypted_md5_data_hash, decrypted_md5_data_hash);
+    }
+    catch (const std::exception &e)
+    {
+        throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "Failed to decrypt encrypted md5 hash with public key, this may be an attempt to change the data illegally");
+    }
+
+    if(md5_hex(std::string(cell_packet->data, data_size)) != decrypted_md5_data_hash)
+    {
+        throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "Cell Hijack attempt! decrypted md5 hash does not match md5 hash of the data provided to us");
+    }
+
     char *data = new char[data_size];
+    memcpy(data, cell_packet->data, data_size);
+    
     Cell cell(this->system);
     cell.setId(cell_id);
     cell.setData(data, data_size);

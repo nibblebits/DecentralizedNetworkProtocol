@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "threadpool.h"
 #include "clientdomainsocket.h"
 #include "serverdomainsocket.h"
+#include "mmapcell.h"
 
 namespace Dnp
 {
@@ -72,6 +73,7 @@ namespace Dnp
         void addCellForProcessing(Cell& cell);
     private:
         void process_cells_waiting_for_processing();
+        void handle_cell_for_processing(MemoryMappedCell &cell);
         void accept_socket_thread();
         DnpFile* dnp_file;
         Network* network;

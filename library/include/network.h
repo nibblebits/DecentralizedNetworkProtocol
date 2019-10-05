@@ -72,6 +72,7 @@ namespace Dnp
         char cell_id[MD5_HEX_SIZE];
         NETWORK_CELL_FLAGS flags;
         char public_key[MAX_PUBLIC_KEY_SIZE];
+        char encrypted_md5_data_hash[MAX_ENCRYPTED_MD5_DATA_HASH_SIZE];
         size_t data_size;
     };
 
