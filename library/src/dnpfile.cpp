@@ -123,16 +123,7 @@ bool DnpFile::iterateBackwards(MemoryMappedCell *cell, CELL_POSITION *current_po
     std::lock_guard<std::mutex> lock(this->mutex);
     struct cell_header header;
     this->loadCellHeader(&header, *current_pos);
-    char pub_key_buf[MAX_PUBLIC_KEY_SIZE];
-    this->seek_and_read(header.public_key_pos, pub_key_buf, header.public_key_size);
-    cell->setPublicKey(std::string((char*) pub_key_buf, header.public_key_size));
-    cell->setId(std::string((char *)&header.id, sizeof(header.id)));
-    cell->setFlags(header.flags);
-    if (header.flags & CELL_FLAG_DATA_LOCAL)
-    {
-        // cell->setData
-        cell->setMappedData(this->node_filename, header.data_pos, header.size);
-    }
+    this->loadCellFromHeader(header, *cell);
 
     // Set the current position to the previous cell
     *current_pos = header.prev_cell_pos;
@@ -153,6 +144,11 @@ void DnpFile::seek_and_read(unsigned long pos, char *data, unsigned long size)
 
 void DnpFile::createCell(Cell *cell)
 {
+    if (!cell->hasEncryptedDataHash())
+    {
+        throw std::logic_error("createCell(): no encrypted data hash provided");
+    }
+
     struct cell_header tmp_header;
     if (find(cell->getId(), tmp_header) != 0)
     {
@@ -167,6 +163,7 @@ void DnpFile::createCell(Cell *cell)
     CELL_FLAGS flags = cell->getFlags();
     std::string public_key = cell->getPublicKey();
     std::string private_key = cell->getPrivateKey();
+    std::string encrypted_hash = cell->getEncryptedHash();
 
     // We got the data set the local flag
     if (data != nullptr)
@@ -190,12 +187,18 @@ void DnpFile::createCell(Cell *cell)
     this->markDataTaken(public_key_pos, public_key.size());
 
     unsigned long private_key_pos = 0;
+    unsigned long encrypted_hash_pos = 0;
     if (flags & CELL_FLAG_PRIVATE_KEY_HOLDER)
     {
+        // Write the private key
         private_key_pos = this->getFreePositionForDataOrThrow(private_key.size());
         seek_and_write(private_key_pos, private_key.c_str(), private_key.size());
         this->markDataTaken(private_key_pos, private_key.size());
     }
+
+    // Write the encrypted hash
+    encrypted_hash_pos = this->getFreePositionForDataOrThrow(encrypted_hash.size());
+    seek_and_write(encrypted_hash_pos, encrypted_hash.c_str(), encrypted_hash.size());
 
     // Get a valid position for the data
     unsigned long data_pos = this->getFreePositionForDataOrThrow(size);
@@ -218,6 +221,8 @@ void DnpFile::createCell(Cell *cell)
     cell_header.public_key_size = public_key.size();
     cell_header.private_key_pos = private_key_pos;
     cell_header.private_key_size = private_key.size();
+    cell_header.encrypted_data_hash_pos = encrypted_hash_pos;
+    cell_header.encrypted_data_hash_size = encrypted_hash.size();
     cell_header.data_pos = data_pos;
     this->node_file.seekp(cell_pos, this->node_file.beg);
     this->node_file.write((const char *)&cell_header, sizeof(struct cell_header));
@@ -444,7 +449,7 @@ bool DnpFile::_doesIpExist(std::string ip)
 
 void DnpFile::addIp(std::string ip)
 {
- //   std::lock_guard<std::mutex> lock(this->mutex);
+    //   std::lock_guard<std::mutex> lock(this->mutex);
     // Ip exists then we will not add it twice
     if (_doesIpExist(ip))
         return;
@@ -523,10 +528,10 @@ bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsig
     return true;
 }
 
-off_t DnpFile::find(std::string cell_id, struct cell_header& tmp_header)
+off_t DnpFile::find(std::string cell_id, struct cell_header &tmp_header)
 {
     off_t current_pos = this->loaded_file_header.first_cell;
-    while(current_pos != 0)
+    while (current_pos != 0)
     {
         loadCellHeader(&tmp_header, current_pos);
         if (memcmp(&tmp_header.id, cell_id.c_str(), MD5_HEX_SIZE) == 0)
@@ -539,14 +544,13 @@ off_t DnpFile::find(std::string cell_id, struct cell_header& tmp_header)
     return current_pos;
 }
 
-bool DnpFile::_updateCell(MemoryMappedCell& cell)
+bool DnpFile::_updateCell(MemoryMappedCell &cell)
 {
     struct cell_header tmp_header;
     off_t header_offset = this->find(cell.getId(), tmp_header);
     if (header_offset == 0)
         return false;
 
-    
     // Cell was not updated? Then we are done here
     if (!cell.wasCellUpdated())
     {
@@ -557,7 +561,7 @@ bool DnpFile::_updateCell(MemoryMappedCell& cell)
     if (changes.flags_changed)
     {
         tmp_header.flags = cell.getFlags();
-        this->seek_and_write(header_offset+offsetof(struct cell_header, flags), (const char*) &tmp_header.flags, sizeof(tmp_header.flags));
+        this->seek_and_write(header_offset + offsetof(struct cell_header, flags), (const char *)&tmp_header.flags, sizeof(tmp_header.flags));
     }
 
     // Cell was updated clear the changes
@@ -578,6 +582,33 @@ void DnpFile::loadCellHeader(struct cell_header *cell_header, CELL_POSITION posi
     this->node_file.read((char *)cell_header, sizeof(struct cell_header));
 }
 
+void DnpFile::loadCellFromHeader(struct cell_header &cell_header, MemoryMappedCell &cell)
+{
+
+    // We found it copy over the header into the returning header
+    cell.setMappedData(this->node_filename, cell_header.data_pos, cell_header.size);
+    cell.setFlags(cell_header.flags);
+    cell.setId(std::string((char *)cell_header.id, sizeof(cell_header.id)));
+
+    std::unique_ptr<char[]> public_key(new char[cell_header.public_key_size]);
+    seek_and_read(cell_header.public_key_pos, public_key.get(), cell_header.public_key_size);
+    cell.setPublicKey(std::string((char *)public_key.get(), cell_header.public_key_size));
+
+    if (cell_header.flags & CELL_FLAG_PRIVATE_KEY_HOLDER)
+    {
+        std::unique_ptr<char[]> private_key(new char[cell_header.private_key_size]);
+        seek_and_read(cell_header.private_key_pos, private_key.get(), cell_header.private_key_size);
+        cell.setPrivateKey(std::string((char *)private_key.get(), cell_header.private_key_size));
+    }
+
+    std::unique_ptr<char[]> encrypted_data_hash = std::make_unique<char[]>(cell_header.encrypted_data_hash_size);
+    this->seek_and_read(cell_header.encrypted_data_hash_pos, encrypted_data_hash.get(), cell_header.encrypted_data_hash_size);
+    cell.setEncryptedDataHash(std::string((char *)encrypted_data_hash.get(), cell_header.encrypted_data_hash_size));
+
+    // Clear the changes of this cell as its fully updated
+    cell.clearChanges();
+}
+
 bool DnpFile::_loadCell(std::string cell_id, MemoryMappedCell &cell)
 {
     // Read in the cell header
@@ -588,25 +619,7 @@ bool DnpFile::_loadCell(std::string cell_id, MemoryMappedCell &cell)
         loadCellHeader(&tmp_header, current_pos);
         if (memcmp(tmp_header.id, cell_id.c_str(), MD5_HEX_SIZE) == 0)
         {
-            // We found it copy over the header into the returning header
-            cell.setMappedData(this->node_filename, tmp_header.data_pos, tmp_header.size);
-            cell.setFlags(tmp_header.flags);
-            cell.setId(std::string((char *)tmp_header.id, sizeof(tmp_header.id)));
-
-            std::unique_ptr<char[]> public_key(new char[tmp_header.public_key_size]);
-            seek_and_read(tmp_header.public_key_pos, public_key.get(), tmp_header.public_key_size);
-            cell.setPublicKey(std::string((char *)public_key.get(), tmp_header.public_key_size));
-
-            if (tmp_header.flags & CELL_FLAG_PRIVATE_KEY_HOLDER)
-            {
-                std::unique_ptr<char[]> private_key(new char[tmp_header.private_key_size]);
-                seek_and_read(tmp_header.private_key_pos, private_key.get(), tmp_header.private_key_size);
-                cell.setPrivateKey(std::string((char *)private_key.get(), tmp_header.private_key_size));
-            }
-
-            // Clear the changes of this cell as its fully updated
-            cell.clearChanges();
-            return true;
+            loadCellFromHeader(tmp_header, cell);
         }
 
         current_pos = tmp_header.next_cell_pos;

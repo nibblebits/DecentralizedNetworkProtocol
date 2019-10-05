@@ -17,6 +17,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "cell.h"
 #include "system.h"
+#include "misc.h"
+#include "crypto/rsa.h"
 #include <memory.h>
 
 using namespace Dnp;
@@ -29,14 +31,13 @@ Cell::Cell(Dnp::System *system)
     this->flags = 0;
     this->clearChanges();
 }
-Cell::Cell(std::string id, System* system) : Cell(system)
+Cell::Cell(std::string id, System *system) : Cell(system)
 {
     this->id = id;
 }
 
 Cell::~Cell()
 {
-    
 }
 
 void Cell::setFlags(CELL_FLAGS flags)
@@ -73,7 +74,6 @@ void Cell::setPrivateKey(std::string private_key)
     this->private_key = private_key;
 }
 
-
 bool Cell::wasCellUpdated()
 {
     return this->cell_changes.changed;
@@ -98,12 +98,27 @@ std::string Cell::getPrivateKey()
     return this->private_key;
 }
 
+bool Cell::hasPrivateKey()
+{
+    return this->private_key.size() > 0;
+}
+bool Cell::hasPublicKey()
+{
+    return this->public_key.size() > 0;
+}
+
+std::string Cell::getEncryptedHash()
+{
+    return this->encrypted_data_hash;
+}
+
+
 unsigned long Cell::getDataSize()
 {
     return this->data_size;
 }
 
-char* Cell::getData()
+char *Cell::getData()
 {
     return this->data;
 }
@@ -113,13 +128,31 @@ bool Cell::hasData()
     return this->data_size != 0;
 }
 
-void Cell::setData(char* data, unsigned long size)
+bool Cell::hasEncryptedDataHash()
+{
+    return this->encrypted_data_hash.size() != 0;
+}
+
+void Cell::setData(char *data, unsigned long size)
 {
     this->data = data;
     this->data_size = size;
     this->cell_changes.changed = true;
     this->cell_changes.data_changed = true;
+    if (this->hasPrivateKey())
+    {
+        std::string data_str = std::string(data, size);
+        std::string hash = md5_hex(data_str);
+        std::string encrypted_hash = "";
+        Rsa::encrypt_private(this->private_key, hash, encrypted_hash);
+        this->setEncryptedDataHash(encrypted_hash); 
+    }
     this->setFlag(CELL_FLAG_DATA_LOCAL);
+}
+
+void Cell::setEncryptedDataHash(std::string data_hash)
+{
+    this->encrypted_data_hash = data_hash;
 }
 
 void Cell::clearChanges()

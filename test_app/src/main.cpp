@@ -1,7 +1,7 @@
 #include <iostream>
 #include <memory.h>
 #include "dnp.h"
-
+#include "crypto/rsa.h"
 using namespace Dnp;
 
 /**
@@ -14,16 +14,16 @@ int main()
   dnp.use();
   dnp.test_ping();
 
-  std::cout << "testing" << std::endl;
-
+  //std::cout << "testing" << std::endl;
+  
   Cell cell = dnp.createCell();
   cell.setId("484837");
   cell.setData("testing 4444", sizeof("testing 4444"));
   cell.publish();
 
 
-  std::cout << "cell published" << std::endl;
-  std::cout << "cell id: " << cell.getId() << std::endl;
+ // std::cout << "cell published" << std::endl;
+  //std::cout << "cell id: " << cell.getId() << std::endl;
   
   while(1)
   {

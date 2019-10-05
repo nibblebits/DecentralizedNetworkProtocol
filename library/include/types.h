@@ -14,6 +14,7 @@ typedef unsigned long NODE_DATA_TABLE_OFFSET;
 typedef unsigned long CELL_DATA_POSITION;
 typedef unsigned long CELL_POSITION;
 typedef unsigned long CELL_RSA_KEY_POSITION;
+typedef unsigned long CELL_HASH_POSITION;
 typedef unsigned long IP_BLOCK_POSITION;
 
 

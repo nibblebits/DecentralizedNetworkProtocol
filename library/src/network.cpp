@@ -231,7 +231,7 @@ void Network::sendCell(Cell *cell)
 
     if (md5_hex(cell_public_key) != cell_id)
     {
-        //    throw std::logic_error("Illegal public key or id, public key md5 hashed does not match cell id, illegal cell! public key=" + cell_public_key + ", cell_id=" + cell_id);
+         throw std::logic_error("Illegal public key or id, public key md5 hashed does not match cell id, illegal cell! public key=" + cell_public_key + ", cell_id=" + cell_id);
     }
 
     if (cell->hasData())

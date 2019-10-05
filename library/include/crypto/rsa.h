@@ -25,22 +25,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <string>
 namespace Dnp
 {
-    struct rsa_keypair
-    {
-        std::string pub_key;
-        std::string private_key;
-        std::string pub_key_md5_hash;
-        std::string private_key_md5_hash;
-    };
+struct rsa_keypair
+{
+    std::string pub_key;
+    std::string private_key;
+    std::string pub_key_md5_hash;
+    std::string private_key_md5_hash;
+};
 
-    class Rsa
-    {
-        public:
-            Rsa();
-            virtual ~Rsa();
-
-            static struct rsa_keypair generateKeypair();
-    };
-}
+class Rsa
+{
+public:
+    Rsa();
+    virtual ~Rsa();
+    static void decrypt_public(const std::string &pub_key, const std::string &input, std::string &out);
+    static void encrypt_private(const std::string &pri_key, const std::string &input, std::string &out);
+    static struct rsa_keypair generateKeypair();
+};
+} // namespace Dnp
 
 #endif

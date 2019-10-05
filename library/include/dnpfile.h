@@ -60,6 +60,9 @@ struct cell_header
     CELL_RSA_KEY_POSITION private_key_pos;
     size_t private_key_size;
 
+    CELL_HASH_POSITION encrypted_data_hash_pos;
+    size_t encrypted_data_hash_size;
+
     CELL_DATA_POSITION data_pos;
     CELL_POSITION prev_cell_pos;
     CELL_POSITION next_cell_pos;
@@ -107,6 +110,7 @@ public:
 private:
     off_t find(std::string cell_id, struct cell_header& tmp_header);
     void loadCellHeader(struct cell_header *cell_header, CELL_POSITION position);
+    void loadCellFromHeader(struct cell_header& cell_header, MemoryMappedCell& cell);
     bool _doesIpExist(std::string ip);
     bool _loadCell(std::string cell_id, MemoryMappedCell& cell);
     bool _updateCell(MemoryMappedCell& cell);

@@ -24,7 +24,7 @@ namespace Dnp
 class System;
 
 struct cell_changes
-{   
+{
     bool changed;
     bool flags_changed;
     bool data_changed;
@@ -36,7 +36,7 @@ public:
     Cell(Dnp::System *system);
     Cell(std::string id, Dnp::System *system);
     virtual ~Cell();
-        
+
     void setId(std::string id);
     void setPublicKey(std::string public_key);
     void setPrivateKey(std::string public_key);
@@ -44,9 +44,10 @@ public:
     void setFlags(CELL_FLAGS flags);
     void setFlag(CELL_FLAG flag);
     void setData(char *data, unsigned long size);
-
+    void setEncryptedDataHash(std::string data_hash);
+    bool hasEncryptedDataHash();
     bool hasData();
-    
+
     /**
      * Clears the defined changes not the changes themselves
      */
@@ -58,18 +59,22 @@ public:
     std::string getId();
     std::string getPublicKey();
     std::string getPrivateKey();
+    std::string getEncryptedHash();
+    bool hasPrivateKey();
+    bool hasPublicKey();
     CELL_FLAGS getFlags();
     char *getData();
-
 
     unsigned long getDataSize();
     void publish();
 
 protected:
     // The id of this node (id = md5(public_key))
-    std::string id;    
+    std::string id;
     std::string public_key;
     std::string private_key;
+    std::string encrypted_data_hash;
+
     char *data;
     unsigned long data_size;
     CELL_FLAGS flags;
