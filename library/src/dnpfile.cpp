@@ -215,7 +215,8 @@ void DnpFile::createCell(Cell *cell)
     initCellHeader(&cell_header);
     if (cell_id.size() != MD5_HEX_SIZE)
     {
-        throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "Provided cell has an illegal cell id, size does not equal MD5_HEX_SIZE: " + std::to_string(MD5_HEX_SIZE));
+        throw Dnp::DnpException(DNP_EXCEPTION_ILLEGAL_CELL, "Provided cell has an illegal cell id, size does not equal MD5_HEX_SIZE: " 
+        + std::to_string(MD5_HEX_SIZE) + " size is: " + std::to_string(cell_id.size()) +  " cell id is: " + cell_id);
     }
     memcpy(cell_header.id, cell_id.c_str(), cell_id.size());
 
@@ -616,7 +617,7 @@ void DnpFile::loadCellFromHeader(struct cell_header &cell_header, MemoryMappedCe
 
     cell.setFlags(cell_header.flags);
     cell.setId(std::string((char *)cell_header.id, sizeof(cell_header.id)));
-
+    
     std::unique_ptr<char[]> public_key(new char[cell_header.public_key_size]);
     seek_and_read(cell_header.public_key_pos, public_key.get(), cell_header.public_key_size);
     cell.setPublicKey(std::string((char *)public_key.get(), cell_header.public_key_size));

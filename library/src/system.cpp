@@ -132,7 +132,7 @@ void System::handle_cell_for_processing(MemoryMappedCell &cell)
             while(1) { }
             break;
         }
-        std::cerr << e.what() << '\n';
+        std::cout << e.what() << '\n';
     }
 
     // Let's mark this cell as published

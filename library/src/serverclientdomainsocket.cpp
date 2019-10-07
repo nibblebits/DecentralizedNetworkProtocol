@@ -94,7 +94,7 @@ void ServerClientDomainSocket::processCellPacket(struct DomainPacket *packet)
     read_blocked(payload, publish_packet->cell_data_size);
 
     // Reconstruct the cell
-    Cell cell(publish_packet->cell_id, this->getSystem());
+    Cell cell(std::string(publish_packet->cell_id, MD5_HEX_SIZE), this->getSystem());
     cell.setPublicKey(std::string(publish_packet->public_key, strnlen(publish_packet->public_key, MAX_PUBLIC_KEY_SIZE)));
     cell.setPrivateKey(std::string(publish_packet->private_key, strnlen(publish_packet->private_key, MAX_PRIVATE_KEY_SIZE)));
     cell.setData(payload, publish_packet->cell_data_size);
