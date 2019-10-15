@@ -9,6 +9,18 @@
   
 #define PORT     8080 
 #define MAXLINE 1024 
+#define DNP_FAMILY 43
+#define DNP_DATAGRAM_PROTOCOL 0
+#define DNP_MAX_PROTOCOLS 1
+#define DNP_MAX_OPTIONS 4
+
+#define SOCKET_OPTION_VALUE_INTEGER 0
+#define SOCKET_OPTION_VALUE_BUFFER 1
+typedef int SOCKET_OPTION_VALUE_TYPE;
+
+#define DNP_SOCKET_OPTION_MUST_DELIVER 0
+#define DNP_SOCKET_MUST_DELIVER 1
+#define DNP_SOCKET_NO_DELIVERY_ACCEPTABLE 0
   
 // Driver code 
 int main() { 
@@ -18,30 +30,15 @@ int main() {
     struct sockaddr_in     servaddr; 
   
    // Creating socket file descriptor 
-    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 243)) < 0 ) { 
+    if ( (sockfd = socket(DNP_FAMILY, SOCK_RAW, DNP_DATAGRAM_PROTOCOL)) < 0 ) { 
         perror("socket creation failed"); 
         exit(EXIT_FAILURE); 
     } 
-  
-    memset(&servaddr, 0, sizeof(servaddr)); 
-      
-    // Filling server information 
-    servaddr.sin_family = AF_INET; 
-    servaddr.sin_port = htons(PORT); 
-    servaddr.sin_addr.s_addr = INADDR_ANY; 
-      
-    int n, len; 
-      
-    sendto(sockfd, (const char *)hello, strlen(hello), 
-        MSG_CONFIRM, (const struct sockaddr *) &servaddr,  
-            sizeof(servaddr)); 
-    printf("Hello message sent.\n"); 
-          
-    n = recvfrom(sockfd, (char *)buffer, MAXLINE,  
-                MSG_WAITALL, (struct sockaddr *) &servaddr, 
-                &len); 
-    buffer[n] = '\0'; 
-    printf("Server : %s\n", buffer); 
+
+    int a = DNP_SOCKET_MUST_DELIVER;
+    setsockopt(sockfd, 0, DNP_SOCKET_OPTION_MUST_DELIVER, &a, sizeof(a));
+    send(sockfd, "Hello world", 5, 0);
+    
   
     close(sockfd); 
     return 0; 

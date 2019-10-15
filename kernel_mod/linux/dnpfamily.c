@@ -1,4 +1,3 @@
-#include "dnpfamily.h"
 #include "dnp.h"
 #include <net/sock.h>
 
@@ -11,9 +10,6 @@ static int dnp_sock_create(struct net *net, struct socket *sock, int proto,
 			   int kern)
 {
 	int rc = -EPROTONOSUPPORT;
-
-	if (net != &init_net)
-		return -EAFNOSUPPORT;
 
 	if (proto < 0 || proto >= DNP_MAX_PROTOCOLS)
 		return -EINVAL;
@@ -77,5 +73,11 @@ int dnp_family_init(void)
 void dnp_family_exit(void)
 {
     printk(KERN_INFO "dnp_family_exit()");
+	sock_unregister(DNP_FAMILY);
+
 }
+
+
+
+
 
