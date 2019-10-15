@@ -6,7 +6,6 @@
 #include <mutex>
 #include "dnp.h"
 #include "cell.h"
-#include "mmapcell.h"
 // This is a bit dirty to be honest maybe a better solution can be achieved
 #define TOTAL_IPS_IN_BLOCK (DNP_SECTOR_SIZE / sizeof(struct in_addr)) - sizeof(struct ip_block_header)
 namespace Dnp
@@ -25,13 +24,6 @@ struct file_header
     char signature[DNP_SIGNATURE_SIZE];
     // The version of this Dnp file
     DNP_FILE_FORMAT_VERSION version;
-    // Total nodes available in the system
-    unsigned long total_cells;
-    // The absolute position of the first node
-    CELL_POSITION first_cell;
-
-    // The absolute position of the most recently created node
-    CELL_POSITION last_cell;
 
     // The absolute position to the first ip table block
     IP_BLOCK_POSITION first_ip_block_position;
@@ -45,26 +37,6 @@ struct data_table_header
 {
     // Total sectors that can be used by this data table
     unsigned int total_sectors;
-};
-
-struct cell_header
-{
-    unsigned char id[MD5_HEX_SIZE];
-    size_t size;
-    CELL_FLAGS flags;
-
-    CELL_RSA_KEY_POSITION public_key_pos;
-    size_t public_key_size;
-
-    CELL_RSA_KEY_POSITION private_key_pos;
-    size_t private_key_size;
-
-    CELL_HASH_POSITION encrypted_data_hash_pos;
-    size_t encrypted_data_hash_size;
-
-    CELL_DATA_POSITION data_pos;
-    CELL_POSITION prev_cell_pos;
-    CELL_POSITION next_cell_pos;
 };
 
 // Header must divide into 4 so that ip_block structure can fit into 512 byte count correctly and have an even number of ip addresses
@@ -93,33 +65,19 @@ public:
     std::string getNodeFilename();
 
     bool getFileHeader(struct file_header *header);
-    void createCell(Cell *cell);
     bool doesIpExist(std::string ip);
     void addIp(std::string ip);
     bool getNextIp(std::string &ip_str, unsigned long *current_index, unsigned long ip_block_pos = -1);
-    bool loadCell(std::string cell_id, MemoryMappedCell &cell);
-    bool deleteCell(const std::string &cell_id);
-    bool updateCell(MemoryMappedCell &cell);
-
-    /**
-     * 
-     * Returns the cell at the current_pos then sets the current_pos to the previous cell from the cell just loaded
-     */
-    bool iterateBackwards(MemoryMappedCell *cell, CELL_POSITION *current_pos);
+   
 
 private:
-    off_t find(std::string cell_id, struct cell_header &tmp_header);
-    void loadCellHeader(struct cell_header *cell_header, CELL_POSITION position);
-    void loadCellFromHeader(struct cell_header &cell_header, MemoryMappedCell &cell);
+
     bool _doesIpExist(std::string ip);
-    bool _loadCell(std::string cell_id, MemoryMappedCell &cell);
-    bool _deleteCell(const std::string &cell_id);
-    bool _updateCell(MemoryMappedCell &cell);
+
     void createCellTable();
     void loadFile(std::string filename);
     void setupFileAndOpen(std::string filename);
     void initFileHeader(struct file_header *header);
-    void initCellHeader(struct cell_header *header);
     void initIpBlock(struct ip_block *ip_block);
     bool isIpBlockFull(unsigned long pos);
 

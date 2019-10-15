@@ -47,7 +47,6 @@ namespace Dnp
         PACKET_TYPE_RESPOND_HELLO,
         PACKET_TYPE_ACTIVE_IP,
         PACKET_TYPE_PING,
-        PACKET_TYPE_CELL_PUBLISH
     };
 
     struct HelloPacket
@@ -67,20 +66,7 @@ namespace Dnp
     };
 
 
-    struct CellPacket_header
-    {
-        char cell_id[MD5_HEX_SIZE];
-        NETWORK_CELL_FLAGS flags;
-        char public_key[MAX_PUBLIC_KEY_SIZE];
-        char encrypted_md5_data_hash[MAX_ENCRYPTED_MD5_DATA_HASH_SIZE];
-        size_t data_size;
-    };
-
-    struct CellPacket
-    {
-        struct CellPacket_header cell_header;
-        char data[MAX_CELL_UDP_PAYLOAD_SIZE];
-    };
+  
 
     struct Packet
     {
@@ -89,7 +75,6 @@ namespace Dnp
         {
             struct HelloPacket hello_packet;
             struct ActiveIpPacket active_ip_packet;
-            struct CellPacket cell_packet;
         };
     };
 
@@ -106,7 +91,6 @@ namespace Dnp
         void bindMyself();
 
         void sendPacket(std::string ip, struct Packet* packet);
-        void sendCell(Cell* cell);
 
         void broadcast(struct Packet* packet);
 
@@ -118,7 +102,7 @@ namespace Dnp
         void handleInitalHelloPacket(struct sockaddr_in client_address, struct Packet* packet);
         void handleHelloRespondPacket(struct sockaddr_in client_address, struct Packet* packet);
         void handleActiveIpPacket(struct sockaddr_in client_address, struct Packet* packet);
-        void handleCellPublishPacket(struct sockaddr_in& client_address, struct Packet* packet);
+
 
         void createActiveIpPacket(std::string ip, struct Packet* packet);
         int get_valid_socket(struct sockaddr_in* servaddr);
