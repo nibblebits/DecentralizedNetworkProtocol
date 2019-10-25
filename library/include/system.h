@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "dnpfile.h"
 #include "types.h"
 #include "threadpool.h"
+#include "dnplinuxkernelclient.h"
 
 namespace Dnp
 {
@@ -49,6 +50,7 @@ namespace Dnp
     private:
         DnpFile* dnp_file;
         Network* network;
+        DnpLinuxKernelClient* kernel_client;
         ThreadPool* thread_pool;
 
     };

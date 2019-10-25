@@ -8,14 +8,7 @@
 
 typedef unsigned int PROTOCOL_VERSION;
 typedef unsigned int DNP_FILE_FORMAT_VERSION;
-typedef unsigned char CELL_FLAGS;
-typedef unsigned char CELL_FLAG;
-typedef unsigned char NETWORK_CELL_FLAGS;
 typedef unsigned long NODE_DATA_TABLE_OFFSET;
-typedef unsigned long CELL_DATA_POSITION;
-typedef unsigned long CELL_POSITION;
-typedef unsigned long CELL_RSA_KEY_POSITION;
-typedef unsigned long CELL_HASH_POSITION;
 typedef unsigned long IP_BLOCK_POSITION;
 
 

@@ -1,5 +1,6 @@
 #include "dnp.h"
 #include "system.h"
+#include "dnplinuxkernelclient.h"
 #include "misc.h"
 #include "network.h"
 #include "threadpool.h"
@@ -18,8 +19,10 @@ using namespace Dnp;
 
 System::System()
 {
+    this->thread_pool = new ThreadPool(5);
     this->dnp_file = new DnpFile(this);
     this->network = new Network(this);
+    this->kernel_client = new DnpLinuxKernelClient();
 }
 
 System::~System()
@@ -27,17 +30,19 @@ System::~System()
     delete this->dnp_file;
     delete this->network;
     delete this->thread_pool;
+    delete this->kernel_client;
 }
 
 
 void System::host()
 {
-    this->thread_pool->start();
+    //this->thread_pool->start();
     dnp_file->openFile("./test.dnp");
 
-    network->begin();
-    network->bindMyself();
-    network->scan();
+    kernel_client->start();
+    ///network->begin();
+    //network->bindMyself();
+    //network->scan();
 
 }
 

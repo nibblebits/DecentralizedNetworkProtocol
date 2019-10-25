@@ -22,7 +22,9 @@ MODULE_VERSION("0.1");
 
 int __init dnp_start(void)
 {
+
     printk(KERN_INFO "Loading DNP module.\n");
+    dnp_kernel_server_init();
     dnp_family_init();
     dnpdatagramprotocol_init();
     return 0;
@@ -31,6 +33,7 @@ int __init dnp_start(void)
 void __exit dnp_end(void)
 {
     printk(KERN_INFO "Unloading DNP module.\n");
+    dnp_kernel_server_exit();
     dnp_family_exit();
     dnpdatagramprotocol_exit();
 }

@@ -1,7 +1,7 @@
 SYSTEM_OBJECT_FILES = 
 OBJECT_FILE_FLAGS = -c -g -fPIC -std=c++14 -g
 EXE_LOCATION = ./bin/dnp
-INCLUDES = -I ./include -I../library/include
+INCLUDES = -I ./include -I ../library/include -I ../kernel_mod/linux
 
 all: ${SYSTEM_OBJECT_FILES}
 	g++ -g ${INCLUDES} ./src/main.cpp -ldnp -ldl -g -std=c++14 -o ${EXE_LOCATION};

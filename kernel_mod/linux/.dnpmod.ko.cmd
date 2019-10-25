@@ -1,0 +1,1 @@
+cmd_/home/daniel/dnp/kernel_mod/linux/dnpmod.ko := ld -r -m elf_x86_64 -z max-page-size=0x200000 -T ./scripts/module-common.lds --build-id  -o /home/daniel/dnp/kernel_mod/linux/dnpmod.ko /home/daniel/dnp/kernel_mod/linux/dnpmod.o /home/daniel/dnp/kernel_mod/linux/dnpmod.mod.o ;  true

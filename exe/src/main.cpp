@@ -3,7 +3,7 @@
 #include <memory.h>
 #include "dnp.h"
 #include "dnpfile.h"
-#include "cell.h"
+#include "dnpexception.h"
 using namespace Dnp;
 
 void createDnpFile()
@@ -18,12 +18,15 @@ void createDnpFile()
 void host()
 {
     Dnp::System dnp;
-    dnp.host();
-
-    while(1)
-    { 
-      dnp.process();
+    try
+    {
+      dnp.host();
     }
+    catch(const DnpException& ex)
+    {
+      std::cout << ex.what() << std::endl;
+    }
+ 
 }
 int main(int argc, char **argv)
 {

@@ -6,22 +6,11 @@
 #include <sys/socket.h> 
 #include <arpa/inet.h> 
 #include <netinet/in.h> 
-  
+#include "dnpmodshared.h"
+
 #define PORT     8080 
 #define MAXLINE 1024 
-#define DNP_FAMILY 43
-#define DNP_DATAGRAM_PROTOCOL 0
-#define DNP_MAX_PROTOCOLS 1
-#define DNP_MAX_OPTIONS 4
 
-#define SOCKET_OPTION_VALUE_INTEGER 0
-#define SOCKET_OPTION_VALUE_BUFFER 1
-typedef int SOCKET_OPTION_VALUE_TYPE;
-
-#define DNP_SOCKET_OPTION_MUST_DELIVER 0
-#define DNP_SOCKET_MUST_DELIVER 1
-#define DNP_SOCKET_NO_DELIVERY_ACCEPTABLE 0
-  
 // Driver code 
 int main() { 
     int sockfd; 
@@ -34,11 +23,8 @@ int main() {
         perror("socket creation failed"); 
         exit(EXIT_FAILURE); 
     } 
-
-    int a = DNP_SOCKET_MUST_DELIVER;
-    setsockopt(sockfd, 0, DNP_SOCKET_OPTION_MUST_DELIVER, &a, sizeof(a));
-    send(sockfd, "Hello world", 5, 0);
-    
+    int rc = send(sockfd, "Hello world", 5, 0);
+    printf("%i\n", rc);
   
     close(sockfd); 
     return 0; 

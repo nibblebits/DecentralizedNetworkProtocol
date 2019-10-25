@@ -17,7 +17,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include "cell.h"
 #include "config.h"
 #include "types.h"
 #include <string>
@@ -78,7 +77,7 @@ namespace Dnp
         };
     };
 
-
+    class System;
     class Network
     {
     public:

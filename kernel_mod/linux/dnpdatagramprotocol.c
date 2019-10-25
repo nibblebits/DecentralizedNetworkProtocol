@@ -1,6 +1,6 @@
 #include "dnp.h"
+#include "dnpmodshared.h"
 #include <net/sock.h>
-
 static int dnpdatagramsock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
@@ -29,7 +29,6 @@ int dnpdatagramsock_set_integer_option_for_userspace(struct dnp_dnpdatagramsock 
 	lock_sock(&dnp_sock->sk);
 	dnp_sock->options[optname].ival = val;
 	release_sock(&dnp_sock->sk);
-
 out:
 	return rc;
 }
@@ -37,6 +36,8 @@ out:
 int dnpdatagramsock_setsockopt(struct socket *sock, int level, int optname,
 							   char __user *optval, unsigned int optlen)
 {
+	ENSURE_KERNEL_BINDED
+
 	int rc = 0;
 
 	struct dnp_dnpdatagramsock *dnp_sock = dnp_dnpdatagramsock(sock->sk);
@@ -47,7 +48,6 @@ int dnpdatagramsock_setsockopt(struct socket *sock, int level, int optname,
 		break;
 	};
 
-out:
 
 	printk(KERN_INFO "dnpdatagramsock_setsockopt() complete\n");
 
@@ -56,17 +56,18 @@ out:
 
 int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
-    char ipv4[32], *usermsg = NULL;
-    struct iovec *iov = NULL;
+	ENSURE_KERNEL_BINDED
 
-    iov = msg->msg_iter.iov;
-    usermsg = (char *)kmalloc(iov->iov_len, GFP_USER);
-    memcpy(usermsg, iov->iov_base, iov->iov_len);
-    printk(KERN_INFO "user msg = %s\n", usermsg);
-    printk(KERN_INFO "msg->msg_iter.count (no of data bytes) = %d", msg->msg_iter.count);
-    printk(KERN_INFO "iov_base = 0x%x, iov_len = %d\n", iov->iov_base, iov->iov_len);
-    printk(KERN_INFO "msg->msg_iter.nr_segs (no of iovec segments) = %d", msg->msg_iter.nr_segs);
-    kfree(usermsg);
+	struct iovec *iov = (struct iovec*) msg->msg_iter.iov;
+	NEW_DNP_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_DATAGRAM)
+	memcpy(&packet->datagram_packet, iov->iov_base, iov->iov_len);
+	if (dnp_kernel_server_send_packet(packet) < 0)
+	{
+		printk(KERN_ERR "%s failed to send packet to kernel server has it crashed?\n", __FUNCTION__);
+		return -ECOMM;
+	}
+	
+	FREE_DNP_KERNEL_PACKET(packet)
 
 	return 0;
 }
@@ -74,6 +75,8 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *m, size_t len,
 		    int flags)
 {
+	ENSURE_KERNEL_BINDED
+
 	return -EOPNOTSUPP;
 }
 
@@ -141,7 +144,8 @@ static struct proto dnpdatagramsock_proto = {
 static const struct dnp_protocol dnpdatagram_proto = {
 	.id = DNP_DATAGRAM_PROTOCOL,
 	.proto = &dnpdatagramsock_proto,
-	.create = dnpdatagramsock_create};
+	.create = dnpdatagramsock_create
+};
 
 int dnpdatagramprotocol_init(void)
 {

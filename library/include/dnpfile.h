@@ -5,7 +5,6 @@
 #include <fstream>
 #include <mutex>
 #include "dnp.h"
-#include "cell.h"
 // This is a bit dirty to be honest maybe a better solution can be achieved
 #define TOTAL_IPS_IN_BLOCK (DNP_SECTOR_SIZE / sizeof(struct in_addr)) - sizeof(struct ip_block_header)
 namespace Dnp

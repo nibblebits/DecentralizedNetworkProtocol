@@ -1,0 +1,1 @@
+cmd_/home/daniel/dnp/kernel_mod/linux/dnpmod.o := ld -m elf_x86_64 -z max-page-size=0x200000   -r -o /home/daniel/dnp/kernel_mod/linux/dnpmod.o /home/daniel/dnp/kernel_mod/linux/dnp.o /home/daniel/dnp/kernel_mod/linux/dnpfamily.o /home/daniel/dnp/kernel_mod/linux/dnpdatagramprotocol.o /home/daniel/dnp/kernel_mod/linux/./dnpkernelserver.o 
