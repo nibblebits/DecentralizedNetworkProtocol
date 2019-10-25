@@ -35,15 +35,13 @@ void DnpLinuxKernelClient::bind_socket()
     dest_addr.nl_pid = 0;    // For Linux Kernel
     dest_addr.nl_groups = 0; // unicast
 
-    msghdr = (struct nlmsghdr*) new char[NLMSG_SPACE(sizeof(struct dnp_kernel_packet))];
+    msghdr = std::unique_ptr<struct nlmsghdr>((struct nlmsghdr *)new char[NLMSG_SPACE(sizeof(struct dnp_kernel_packet))]);
     if (!msghdr)
     {
-        close(sock);
-        sock = -1;
-        return;
+        throw DnpException(DNP_EXCEPTION_KERNEL_CLIENT_BIND_FAILURE, "Failed to allocate memory for msdhdr");
     }
 
-    memset(msghdr, 0, NLMSG_SPACE(sizeof(struct dnp_kernel_packet)));
+    memset(msghdr.get(), 0, NLMSG_SPACE(sizeof(struct dnp_kernel_packet)));
     msghdr->nlmsg_len = NLMSG_SPACE(sizeof(struct dnp_kernel_packet));
     msghdr->nlmsg_pid = getpid(); // self pid
     msghdr->nlmsg_flags = 0;
@@ -51,11 +49,17 @@ void DnpLinuxKernelClient::bind_socket()
 
 DNP_LINUX_KERNEL_SEND_RES DnpLinuxKernelClient::send_packet(const struct dnp_kernel_packet &kernel_packet)
 {
+
+    memset(msghdr.get(), 0, NLMSG_SPACE(sizeof(struct dnp_kernel_packet)));
+    msghdr->nlmsg_len = NLMSG_SPACE(sizeof(struct dnp_kernel_packet));
+    msghdr->nlmsg_pid = getpid(); // self pid
+    msghdr->nlmsg_flags = 0;
+
     struct iovec iov;
     struct msghdr msg;
-    memcpy(NLMSG_DATA(msghdr), &kernel_packet, sizeof(kernel_packet));
+    memcpy(NLMSG_DATA(msghdr.get()), &kernel_packet, sizeof(kernel_packet));
 
-    iov.iov_base = (void *)msghdr;
+    iov.iov_base = (void *)msghdr.get();
     iov.iov_len = msghdr->nlmsg_len;
 
     memset(&msg, 0, sizeof(struct msghdr));
@@ -83,10 +87,14 @@ DNP_LINUX_KERNEL_RECV_RES DnpLinuxKernelClient::recv_packet(struct dnp_kernel_pa
     struct iovec iov;
     struct msghdr msg;
 
-    iov.iov_base = (void *)msghdr;
+    iov.iov_base = (void *)msghdr.get();
     iov.iov_len = msghdr->nlmsg_len;
+    msg.msg_name = (void *)&dest_addr;
+    msg.msg_namelen = sizeof(dest_addr);
     msg.msg_iov = &iov;
     msg.msg_iovlen = 1;
+
+    memset(&kernel_packet, 0, sizeof(kernel_packet));
 
     set_socket_timeout(timeout);
     if (recvmsg(sock, &msg, 0) < 0)
@@ -94,8 +102,7 @@ DNP_LINUX_KERNEL_RECV_RES DnpLinuxKernelClient::recv_packet(struct dnp_kernel_pa
         return DNP_LINUX_KERNEL_RECV_ERROR;
     }
 
-    memset(&kernel_packet, 0, sizeof(kernel_packet));
-    memcpy(&kernel_packet, NLMSG_DATA(msghdr), sizeof(kernel_packet));
+    memcpy(&kernel_packet, NLMSG_DATA(msghdr.get()), sizeof(kernel_packet));
     return DNP_LINUX_KERNEL_RECV_OK;
 }
 
@@ -150,7 +157,6 @@ void DnpLinuxKernelClient::start()
 
 void DnpLinuxKernelClient::run()
 {
-    return;
     while (1)
     {
         try

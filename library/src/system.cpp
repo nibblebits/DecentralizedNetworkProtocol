@@ -40,6 +40,11 @@ void System::host()
     dnp_file->openFile("./test.dnp");
 
     kernel_client->start();
+
+    while(1)
+    {
+        
+    }
     ///network->begin();
     //network->bindMyself();
     //network->scan();
