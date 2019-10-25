@@ -18,12 +18,23 @@ int main() {
     char *hello = "Hello from client"; 
     struct sockaddr_in     servaddr; 
   
+
+
    // Creating socket file descriptor 
     if ( (sockfd = socket(DNP_FAMILY, SOCK_RAW, DNP_DATAGRAM_PROTOCOL)) < 0 ) { 
         perror("socket creation failed"); 
         exit(EXIT_FAILURE); 
     } 
-    int rc = send(sockfd, "Hello world", 5, 0);
+
+
+    memset(&servaddr, 0, sizeof(servaddr)); 
+      
+    // Filling server information 
+    servaddr.sin_family = DNP_FAMILY; 
+    servaddr.sin_port = htons(PORT); 
+    memcpy(&servaddr.sin_addr.s_addr, "ffffffffffffffffffffffffffffffff", sizeof(servaddr.sin_addr.s_addr));
+    
+    int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &servaddr.sin_family, sizeof(servaddr));
     printf("%i\n", rc);
   
     close(sockfd); 

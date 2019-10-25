@@ -48,7 +48,6 @@ int dnpdatagramsock_setsockopt(struct socket *sock, int level, int optname,
 		break;
 	};
 
-
 	printk(KERN_INFO "dnpdatagramsock_setsockopt() complete\n");
 
 	return rc;
@@ -58,7 +57,27 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	ENSURE_KERNEL_BINDED
 
-	struct iovec *iov = (struct iovec*) msg->msg_iter.iov;
+	if (!msg->msg_name)
+	{
+		printk(KERN_ERR "%s sending message without destination address is not allowed! msg_name is NULL\n", __FUNCTION__);
+		return -EDESTADDRREQ;
+	}
+
+	DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
+	if (!usin || msg->msg_namelen < sizeof(*usin))
+	{
+		printk(KERN_ERR "%s destination address is invalid\n", __FUNCTION__);
+		return -EINVAL;
+	}
+
+	if (usin->sin_family != DNP_FAMILY)
+	{
+		printk(KERN_ERR "%s message family is invalid, expecting DNP_FAMILY", __FUNCTION__);
+		return -EAFNOSUPPORT;
+	}
+
+
+	struct iovec *iov = (struct iovec *)msg->msg_iter.iov;
 	NEW_DNP_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_DATAGRAM)
 	memcpy(&packet->datagram_packet, iov->iov_base, iov->iov_len);
 	if (dnp_kernel_server_send_packet(packet) < 0)
@@ -66,20 +85,19 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		printk(KERN_ERR "%s failed to send packet to kernel server has it crashed?\n", __FUNCTION__);
 		return -ECOMM;
 	}
-	
+
 	FREE_DNP_KERNEL_PACKET(packet)
 
 	return 0;
 }
 
 int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *m, size_t len,
-		    int flags)
+							int flags)
 {
 	ENSURE_KERNEL_BINDED
 
 	return -EOPNOTSUPP;
 }
-
 
 static const struct proto_ops dnpdatagramsock_ops = {
 	.family = DNP_FAMILY,
@@ -144,8 +162,7 @@ static struct proto dnpdatagramsock_proto = {
 static const struct dnp_protocol dnpdatagram_proto = {
 	.id = DNP_DATAGRAM_PROTOCOL,
 	.proto = &dnpdatagramsock_proto,
-	.create = dnpdatagramsock_create
-};
+	.create = dnpdatagramsock_create};
 
 int dnpdatagramprotocol_init(void)
 {
