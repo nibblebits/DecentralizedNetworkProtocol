@@ -28,6 +28,13 @@ struct dnp_dnpdatagramsock
 
 #define dnp_dnpdatagramsock(sk) ((struct dnp_dnpdatagramsock *) sk)
 
+struct dnp_binded_port
+{
+	// Socket that is binded to this port
+	struct socket* sock;
+	__u16 port;
+	struct list_head list;
+};
 
 struct dnp_protocol {
 	int id;
@@ -51,6 +58,8 @@ bool dnp_kernel_server_binded_to_pid(void);
 int dnp_kernel_server_send_packet_to_pid(struct dnp_kernel_packet *packet, __u32 _pid);
 int dnp_kernel_server_send_packet(struct dnp_kernel_packet *packet);
 void dnp_kernel_server_new_packet(DNP_KERNEL_PACKET_TYPE type, struct dnp_kernel_packet* packet);
-
-
+int dnp_set_port(struct list_head* list, __u16 port, struct socket* sock);
+bool dnp_is_port_set(struct list_head* list, __u16 port);
+struct dnp_binded_port* dnp_get_port_by_socket(struct list_head* list, struct socket* socket);
+int dnp_remove_port(struct list_head* list, struct socket* sock);
 #endif

@@ -1,6 +1,11 @@
 #include "dnp.h"
 #include "dnpmodshared.h"
 #include <net/sock.h>
+
+
+LIST_HEAD(root_port_list);
+DEFINE_MUTEX(port_list_mutex);
+
 static int dnpdatagramsock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
@@ -8,6 +13,10 @@ static int dnpdatagramsock_release(struct socket *sock)
 	printk(KERN_INFO "dnpdatagramsock_release()");
 	if (!sk)
 		return 0;
+
+	mutex_lock(&port_list_mutex);
+	dnp_remove_port(&root_port_list, sock);
+	mutex_unlock(&port_list_mutex);
 
 	sock_orphan(sk);
 	sock_put(sk);
@@ -78,7 +87,7 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 
 	struct iovec *iov = (struct iovec *)msg->msg_iter.iov;
-	NEW_DNP_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_DATAGRAM)
+	NEW_DNP_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM)
 	memcpy(&packet->datagram_packet, iov->iov_base, iov->iov_len);
 	if (dnp_kernel_server_send_packet(packet) < 0)
 	{
@@ -99,11 +108,38 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *m, size_t len,
 	return -EOPNOTSUPP;
 }
 
+
+
+int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
+{
+	int err = 0;
+	DECLARE_SOCKADDR(struct sockaddr_in *, address, saddr);
+	if (address->sin_family != DNP_FAMILY)
+	{
+		printk(KERN_ERR "%s Expecting a DNP family but an unknown family type was provided\n", __FUNCTION__);
+		return -EAFNOSUPPORT;
+	}
+
+	__u16 port = address->sin_port;
+	mutex_lock(&port_list_mutex);
+	err = dnp_set_port(&root_port_list, port, sock);
+	mutex_unlock(&port_list_mutex);
+	if(err < 0)
+	{
+		printk(KERN_ERR "%s Failed to set port err=%i\n", __FUNCTION__, err);
+		goto out;
+	}
+
+out:
+	return err;
+}
+
+
 static const struct proto_ops dnpdatagramsock_ops = {
 	.family = DNP_FAMILY,
 	.owner = THIS_MODULE,
 	.release = dnpdatagramsock_release,
-	.bind = sock_no_bind,
+	.bind = dnpdatagramsock_bind,
 	.connect = sock_no_connect,
 	.socketpair = sock_no_socketpair,
 	.accept = sock_no_accept,
@@ -162,7 +198,8 @@ static struct proto dnpdatagramsock_proto = {
 static const struct dnp_protocol dnpdatagram_proto = {
 	.id = DNP_DATAGRAM_PROTOCOL,
 	.proto = &dnpdatagramsock_proto,
-	.create = dnpdatagramsock_create};
+	.create = dnpdatagramsock_create
+	};
 
 int dnpdatagramprotocol_init(void)
 {

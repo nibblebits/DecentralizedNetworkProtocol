@@ -1,5 +1,5 @@
 obj-m += dnpmod.o
-dnpmod-objs = dnp.o dnpfamily.o dnpdatagramprotocol.o ./dnpkernelserver.o
+dnpmod-objs = dnp.o dnpfamily.o dnpdatagramprotocol.o ./dnpkernelserver.o ./dnpportlist.o
 ccflags-y := -std=gnu99 -Wno-declaration-after-statement
 
 all:

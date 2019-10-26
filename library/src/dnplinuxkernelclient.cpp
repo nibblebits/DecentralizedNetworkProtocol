@@ -163,7 +163,7 @@ void DnpLinuxKernelClient::run()
         {
             struct dnp_kernel_packet packet;
             recv_packet(packet);
-            if (packet.type == DNP_KERNEL_PACKET_TYPE_DATAGRAM)
+            if (packet.type == DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM)
             {
                 std::cout << packet.datagram_packet.buf << std::endl;
             }
