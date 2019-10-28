@@ -112,15 +112,37 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *m, size_t len,
 
 int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 {
-	int err = 0;
-	DECLARE_SOCKADDR(struct sockaddr_in *, address, saddr);
-	if (address->sin_family != DNP_FAMILY)
+	// Ensures the kernel is binded to the user host application that is running our DNP server (unrelated to this call)
+//	ENSURE_KERNEL_BINDED
+
+	if (len != sizeof(struct dnp_address))
 	{
-		printk(KERN_ERR "%s Expecting a DNP family but an unknown family type was provided\n", __FUNCTION__);
-		return -EAFNOSUPPORT;
+		printk(KERN_ERR "%s Expecting a struct dnp_address but an unexpected type was provided to us len=%i expected_len=%i\n ", __FUNCTION__, len, (int)sizeof(struct dnp_address));
+		return -EINVAL;
 	}
 
-	__u16 port = address->sin_port;
+	struct dnp_address* dnp_address = (struct dnp_address*) saddr;
+	if (dnp_address->addr == NULL)
+	{
+		printk(KERN_ERR "%s dnp_address->addr is NULL\n", __FUNCTION__);
+		return -EINVAL;
+	}
+
+
+	char addr[DNP_ID_SIZE];
+	if(copy_from_user(addr, dnp_address->addr, sizeof(addr)) != 0)
+	{
+		printk(KERN_ERR "%s failed to copy data from user process\n", __FUNCTION__);
+		return -EINVAL;
+	}
+
+	if (dnp_address->flags & DNP_ADDRESS_FLAG_GENERATE_ADDRESS)
+	{
+		copy_to_user(dnp_address->addr, "123", 3);
+	}
+
+	__u16 port = dnp_address->port;
+	int err = 0;
 	mutex_lock(&port_list_mutex);
 	err = dnp_set_port(&root_port_list, port, sock);
 	mutex_unlock(&port_list_mutex);

@@ -62,4 +62,5 @@ int dnp_set_port(struct list_head* list, __u16 port, struct socket* sock);
 bool dnp_is_port_set(struct list_head* list, __u16 port);
 struct dnp_binded_port* dnp_get_port_by_socket(struct list_head* list, struct socket* socket);
 int dnp_remove_port(struct list_head* list, struct socket* sock);
+
 #endif

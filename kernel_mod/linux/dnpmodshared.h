@@ -1,6 +1,7 @@
 #ifndef DNPMODSHARED_H
 #define DNPMODSHARED_H
 
+#include <linux/socket.h>
 #define NETLINK_DNP 31
 
 #define DNP_FAMILY 43
@@ -8,12 +9,15 @@
 #define DNP_MAX_PROTOCOLS 1
 #define DNP_MAX_OPTIONS 4
 
+#define DNP_ID_SIZE 32
+
 #define SOCKET_OPTION_VALUE_INTEGER 0
 #define SOCKET_OPTION_VALUE_BUFFER 1
 
 #define DNP_SOCKET_OPTION_MUST_DELIVER 0
 
 #define DNP_MAX_DATAGRAM_PACKET_SIZE 1024
+#define __SOCK_SIZE__	16		/* sizeof(struct sockaddr)	*/
 
 typedef unsigned char DNP_KERNEL_PACKET_TYPE;
 
@@ -65,6 +69,20 @@ struct dnp_kernel_packet
         struct dnp_kernel_packet_hello_response hello_res_packet;
         struct dnp_kernel_packet_datagram datagram_packet;
     };
+};
+
+
+typedef unsigned char DNP_ADDRESS_FLAGS;
+enum
+{
+    DNP_ADDRESS_FLAG_GENERATE_ADDRESS = 0b00000001
+};
+struct dnp_address
+{
+    char* addr;
+    unsigned short port;
+    DNP_ADDRESS_FLAGS flags;
+    
 };
 
 #endif

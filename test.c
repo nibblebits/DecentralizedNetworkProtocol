@@ -17,7 +17,9 @@ int main()
     int sockfd;
     char buffer[MAXLINE];
     char *hello = "Hello from client";
-    struct sockaddr_in servaddr;
+    
+
+    struct dnp_address servaddr;
 
     // Creating socket file descriptor
     if ((sockfd = socket(DNP_FAMILY, SOCK_RAW, DNP_DATAGRAM_PROTOCOL)) < 0)
@@ -27,17 +29,21 @@ int main()
     }
     memset(&servaddr, 0, sizeof(servaddr));
 
-    // Filling server information
-    servaddr.sin_family = DNP_FAMILY;
-    servaddr.sin_port = htons(PORT);
-    memcpy(&servaddr.sin_addr.s_addr, "ffffffffffffffffffffffffffffffff", sizeof(servaddr.sin_addr.s_addr));
+    char addr[DNP_ID_SIZE];
+    memcpy(addr, "fffffffffffffffffffffffffffffff", sizeof(addr));
 
-    int res = bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr));
+    // Filling server information
+    servaddr.port = htons(PORT);
+    servaddr.addr = (char*) (0xfffffffff);
+    servaddr.flags = DNP_ADDRESS_FLAG_GENERATE_ADDRESS;
+    int res = bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
     if (res < 0)
     {
         printf("Failed to bind! Size=: %i\n", (int)sizeof(servaddr));
         printf("%s\n", strerror(res));
     }
+
+    printf("%s\n", servaddr.addr);
 
     while(1) {}
     //    int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &servaddr.sin_family, sizeof(servaddr));

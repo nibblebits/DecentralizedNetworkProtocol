@@ -20,14 +20,10 @@ MODULE_DESCRIPTION("DNP Network Module");
 ///< The version of the module
 MODULE_VERSION("0.1");
 
-struct teststruct
-{
-    int a;
-    struct list_head list;
-};
 
 int __init dnp_start(void)
 {
+
     printk(KERN_INFO "Loading DNP module.\n");
     dnp_kernel_server_init();
     dnp_family_init();
