@@ -11,6 +11,10 @@ ThreadPool::ThreadPool(int number_of_threads)
 
 ThreadPool::~ThreadPool()
 {
+    for (int i = 0; i < number_of_threads; i++)
+    {
+        this->threads[i].join();
+    }
 }
 
 void ThreadPool::thread_pool_run(int thread_id)

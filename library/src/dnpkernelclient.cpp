@@ -1,11 +1,13 @@
 
 #include "dnpkernelclient.h"
+#include "system.h"
 #include <unistd.h>
 
 using namespace Dnp;
 
-DnpKernelClient::DnpKernelClient()
+DnpKernelClient::DnpKernelClient(System* system)
 {
+    this->system = system;
 }
 
 DnpKernelClient::~DnpKernelClient()

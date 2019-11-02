@@ -17,17 +17,19 @@
 #define DNP_SOCKET_OPTION_MUST_DELIVER 0
 
 #define DNP_MAX_DATAGRAM_PACKET_SIZE 1024
-#define __SOCK_SIZE__	16		/* sizeof(struct sockaddr)	*/
+#define __SOCK_SIZE__ 16 /* sizeof(struct sockaddr)	*/
 
+typedef int DNP_SEMAPHORE_ID;
 typedef unsigned char DNP_KERNEL_PACKET_TYPE;
 
 enum
 {
     DNP_KERNEL_PACKET_TYPE_HELLO,
     DNP_KERNEL_PACKET_TYPE_HELLO_RESPONSE,
-    DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM
+    DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM,
+    DNP_KERNEL_PACKET_TYPE_CREATE_ID,
+    DNP_KERNEL_PACKET_TYPE_CREATE_ID_RESPONSE
 };
-
 
 enum
 {
@@ -57,32 +59,41 @@ struct dnp_kernel_packet_hello_response
 struct dnp_kernel_packet_datagram
 {
     char buf[DNP_MAX_DATAGRAM_PACKET_SIZE];
-    
 };
 
+struct dnp_kernel_packet_create_id_packet
+{
+};
+
+struct dnp_kernel_packet_create_id_res
+{
+    char created_id[DNP_ID_SIZE];
+};
 
 struct dnp_kernel_packet
 {
     DNP_KERNEL_PACKET_TYPE type;
+    DNP_SEMAPHORE_ID sem_id;
     union {
         struct dnp_kernel_packet_hello hello_packet;
         struct dnp_kernel_packet_hello_response hello_res_packet;
         struct dnp_kernel_packet_datagram datagram_packet;
+        struct dnp_kernel_packet_create_id_packet create_id_packet;
+        struct dnp_kernel_packet_create_id_res create_id_packet_res;
     };
 };
-
 
 typedef unsigned char DNP_ADDRESS_FLAGS;
 enum
 {
     DNP_ADDRESS_FLAG_GENERATE_ADDRESS = 0b00000001
 };
+
 struct dnp_address
 {
-    char* addr;
+    char *addr;
     unsigned short port;
     DNP_ADDRESS_FLAGS flags;
-    
 };
 
 #endif

@@ -1,12 +1,14 @@
 #include "dnplinuxkernelclient.h"
 #include "dnpmodshared.h"
 #include "dnpexception.h"
+#include "system.h"
+#include "crypto/rsa.h"
 #include <memory.h>
 #include <unistd.h>
 #include <iostream>
 
 using namespace Dnp;
-DnpLinuxKernelClient::DnpLinuxKernelClient() : DnpKernelClient()
+DnpLinuxKernelClient::DnpLinuxKernelClient(System *system) : DnpKernelClient(system)
 {
     sock = -1;
 }
@@ -18,7 +20,6 @@ DnpLinuxKernelClient::~DnpLinuxKernelClient()
 void DnpLinuxKernelClient::bind_socket()
 {
     struct sockaddr_nl src_addr;
-
     sock = socket(PF_NETLINK, SOCK_RAW, NETLINK_DNP);
 
     memset(&src_addr, 0, sizeof(src_addr));
@@ -35,31 +36,25 @@ void DnpLinuxKernelClient::bind_socket()
     dest_addr.nl_pid = 0;    // For Linux Kernel
     dest_addr.nl_groups = 0; // unicast
 
-    msghdr = std::unique_ptr<struct nlmsghdr>((struct nlmsghdr *)new char[NLMSG_SPACE(sizeof(struct dnp_kernel_packet))]);
-    if (!msghdr)
-    {
-        throw DnpException(DNP_EXCEPTION_KERNEL_CLIENT_BIND_FAILURE, "Failed to allocate memory for msdhdr");
-    }
-
-    memset(msghdr.get(), 0, NLMSG_SPACE(sizeof(struct dnp_kernel_packet)));
-    msghdr->nlmsg_len = NLMSG_SPACE(sizeof(struct dnp_kernel_packet));
-    msghdr->nlmsg_pid = getpid(); // self pid
-    msghdr->nlmsg_flags = 0;
+    set_socket_timeout(DNP_KERNEL_TIMEOUT_SECONDS);
 }
 
 DNP_LINUX_KERNEL_SEND_RES DnpLinuxKernelClient::send_packet(const struct dnp_kernel_packet &kernel_packet)
 {
+    char buf[NLMSG_SPACE(sizeof(struct dnp_kernel_packet))];
+    memset(buf, 0, NLMSG_SPACE(sizeof(struct dnp_kernel_packet)));
+    struct nlmsghdr *msghdr = (struct nlmsghdr *)buf;
 
-    memset(msghdr.get(), 0, NLMSG_SPACE(sizeof(struct dnp_kernel_packet)));
+    memset(msghdr, 0, NLMSG_SPACE(sizeof(struct dnp_kernel_packet)));
     msghdr->nlmsg_len = NLMSG_SPACE(sizeof(struct dnp_kernel_packet));
     msghdr->nlmsg_pid = getpid(); // self pid
     msghdr->nlmsg_flags = 0;
 
     struct iovec iov;
     struct msghdr msg;
-    memcpy(NLMSG_DATA(msghdr.get()), &kernel_packet, sizeof(kernel_packet));
+    memcpy(NLMSG_DATA(msghdr), &kernel_packet, sizeof(kernel_packet));
 
-    iov.iov_base = (void *)msghdr.get();
+    iov.iov_base = (void *)msghdr;
     iov.iov_len = msghdr->nlmsg_len;
 
     memset(&msg, 0, sizeof(struct msghdr));
@@ -82,12 +77,20 @@ void DnpLinuxKernelClient::set_socket_timeout(int seconds)
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(struct timeval));
 }
 
-DNP_LINUX_KERNEL_RECV_RES DnpLinuxKernelClient::recv_packet(struct dnp_kernel_packet &kernel_packet, int timeout = 5)
+DNP_LINUX_KERNEL_RECV_RES DnpLinuxKernelClient::recv_packet(struct dnp_kernel_packet &kernel_packet)
 {
+    char buf[NLMSG_SPACE(sizeof(struct dnp_kernel_packet))];
+    memset(buf, 0, NLMSG_SPACE(sizeof(struct dnp_kernel_packet)));
+    struct nlmsghdr *msghdr = (struct nlmsghdr *)buf;
+    memset(msghdr, 0, NLMSG_SPACE(sizeof(struct dnp_kernel_packet)));
+    msghdr->nlmsg_len = NLMSG_SPACE(sizeof(struct dnp_kernel_packet));
+    msghdr->nlmsg_pid = getpid(); // self pid
+    msghdr->nlmsg_flags = 0;
+
     struct iovec iov;
     struct msghdr msg;
 
-    iov.iov_base = (void *)msghdr.get();
+    iov.iov_base = (void *)msghdr;
     iov.iov_len = msghdr->nlmsg_len;
     msg.msg_name = (void *)&dest_addr;
     msg.msg_namelen = sizeof(dest_addr);
@@ -95,14 +98,12 @@ DNP_LINUX_KERNEL_RECV_RES DnpLinuxKernelClient::recv_packet(struct dnp_kernel_pa
     msg.msg_iovlen = 1;
 
     memset(&kernel_packet, 0, sizeof(kernel_packet));
-
-    set_socket_timeout(timeout);
     if (recvmsg(sock, &msg, 0) < 0)
     {
         return DNP_LINUX_KERNEL_RECV_ERROR;
     }
 
-    memcpy(&kernel_packet, NLMSG_DATA(msghdr.get()), sizeof(kernel_packet));
+    memcpy(&kernel_packet, NLMSG_DATA(msghdr), sizeof(kernel_packet));
     return DNP_LINUX_KERNEL_RECV_OK;
 }
 
@@ -135,10 +136,16 @@ void DnpLinuxKernelClient::recv_ping_response()
     }
 }
 
+void DnpLinuxKernelClient::init_packet(DNP_KERNEL_PACKET_TYPE type, struct dnp_kernel_packet &kernel_packet)
+{
+    memset(&kernel_packet, 0, sizeof(struct dnp_kernel_packet));
+    kernel_packet.type = type;
+    kernel_packet.sem_id = -1;
+}
+
 void DnpLinuxKernelClient::send_ping_packet()
 {
-    struct dnp_kernel_packet packet;
-    packet.type = DNP_KERNEL_PACKET_TYPE_HELLO;
+    CREATE_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_HELLO)
     if (send_packet(packet) != DNP_LINUX_KERNEL_SEND_OK)
         throw DnpException(DNP_EXCEPTION_KERNEL_CLIENT_HELLO_FAILURE, "Failed to send inital PING packet!");
 
@@ -155,17 +162,31 @@ void DnpLinuxKernelClient::start()
     DnpKernelClient::start();
 }
 
+void DnpLinuxKernelClient::send_create_id_res_packet(DNP_SEMAPHORE_ID sem_id)
+{
+    struct rsa_keypair keypair = Rsa::generateKeypair();
+    CREATE_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_CREATE_ID_RESPONSE)
+    packet.sem_id = sem_id;
+    memcpy(packet.create_id_packet_res.created_id, keypair.pub_key_md5_hash.c_str(), DNP_ID_SIZE);
+
+    if (send_packet(packet) != DNP_LINUX_KERNEL_SEND_OK)
+        throw DnpException(DNP_EXCEPTION_KERNEL_CLIENT_PACKET_SEND_FAILURE, "Something went wrong sending the create id response to the kernel");
+}
+
 void DnpLinuxKernelClient::run()
 {
+    Dnp::ThreadPool *thread_pool = system->getThreadPool();
     while (1)
     {
         try
         {
             struct dnp_kernel_packet packet;
             recv_packet(packet);
-            if (packet.type == DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM)
+            switch (packet.type)
             {
-                std::cout << packet.datagram_packet.buf << std::endl;
+            case DNP_KERNEL_PACKET_TYPE_CREATE_ID:
+                thread_pool->addTask(std::bind(&DnpLinuxKernelClient::send_create_id_res_packet, this, packet.sem_id));
+                break;
             }
         }
         catch (Dnp::DnpException &ex)

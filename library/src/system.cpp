@@ -19,10 +19,10 @@ using namespace Dnp;
 
 System::System()
 {
-    this->thread_pool = new ThreadPool(5);
+    this->thread_pool = new ThreadPool(4);
     this->dnp_file = new DnpFile(this);
     this->network = new Network(this);
-    this->kernel_client = new DnpLinuxKernelClient();
+    this->kernel_client = new DnpLinuxKernelClient(this);
 }
 
 System::~System()
@@ -36,7 +36,7 @@ System::~System()
 
 void System::host()
 {
-    //this->thread_pool->start();
+    this->thread_pool->start();
     dnp_file->openFile("./test.dnp");
 
     kernel_client->start();
@@ -51,6 +51,11 @@ void System::host()
 
 }
 
+
+ThreadPool* System::getThreadPool()
+{
+    return this->thread_pool;
+}
 
 DnpFile *System::getDnpFile()
 {

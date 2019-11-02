@@ -46,6 +46,7 @@ namespace Dnp
          */
         void process();
         
+        ThreadPool* getThreadPool();
   
     private:
         DnpFile* dnp_file;
