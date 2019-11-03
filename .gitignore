@@ -3,4 +3,6 @@
 *.ko
 *.cmd
 *.mod
+*.dnp
 /.vscode/*
+/exe/bin/*
