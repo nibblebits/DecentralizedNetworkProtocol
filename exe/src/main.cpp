@@ -3,6 +3,7 @@
 #include <memory.h>
 #include "dnp.h"
 #include "dnpfile.h"
+#include "crypto/rsa.h"
 #include "dnpexception.h"
 using namespace Dnp;
 
@@ -11,7 +12,11 @@ void createDnpFile()
   Dnp::System dnp;
   DnpFile dnp_file(&dnp);
   dnp_file.openFile("./test.dnp");
-  dnp_file.addIp("178.62.113.46");
+  // Create very first DNP address (Global DNP Address) will be used when no address is provided when sending packets
+  struct rsa_keypair keypair = Rsa::generateKeypair();
+  std::cout << "PUB KEY HASH: " << keypair.pub_key_md5_hash << std::endl;
+  dnp_file.addDnpAddress(keypair.pub_key_md5_hash, keypair.pub_key, keypair.private_key);
+  //dnp_file.addIp("178.62.113.46");
   
 }
 

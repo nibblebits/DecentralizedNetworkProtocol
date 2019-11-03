@@ -164,7 +164,11 @@ void DnpLinuxKernelClient::start()
 
 void DnpLinuxKernelClient::send_create_id_res_packet(DNP_SEMAPHORE_ID sem_id)
 {
+    DnpFile* dnp_file = this->system->getDnpFile();
     struct rsa_keypair keypair = Rsa::generateKeypair();
+    // Let's try and save this to disk and if its successful then we can return this packet
+    dnp_file->addDnpAddress(keypair.pub_key_md5_hash, keypair.pub_key, keypair.private_key);
+    
     CREATE_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_CREATE_ID_RESPONSE)
     packet.sem_id = sem_id;
     memcpy(packet.create_id_packet_res.created_id, keypair.pub_key_md5_hash.c_str(), DNP_ID_SIZE);

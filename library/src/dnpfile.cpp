@@ -103,12 +103,10 @@ void DnpFile::initFileHeader(struct file_header *header)
     header->version = CURRENT_DNP_FILE_FORMAT_VERSION;
 }
 
-
 void DnpFile::initIpBlock(struct ip_block *ip_block)
 {
     memset(ip_block, 0x00, sizeof(struct ip_block));
 }
-
 
 void DnpFile::seek_and_write(unsigned long pos, const char *data, unsigned long size)
 {
@@ -121,7 +119,6 @@ void DnpFile::seek_and_read(unsigned long pos, char *data, unsigned long size)
     this->node_file.seekp(pos);
     this->node_file.read(data, size);
 }
-
 
 unsigned long DnpFile::getFreePositionForData(unsigned long size)
 {
@@ -335,9 +332,110 @@ bool DnpFile::_doesIpExist(std::string ip)
     return false;
 }
 
+bool DnpFile::_getDnpAddress(std::string address, struct dnp_address *dnp_address)
+{
+    DNP_ADDRESS_POSITION pos = this->loaded_file_header.first_dnp_address_position;
+    while (pos != 0)
+    {
+        seek_and_read(pos, (char *)dnp_address, sizeof(*dnp_address));
+        if (memcmp(dnp_address->address, address.c_str(), address.size()) == 0)
+        {
+            return true;
+        }
+        pos = dnp_address->next;
+    }
+    return false;
+}
+
+bool DnpFile::getDnpAddress(std::string address, struct dnp_address *dnp_address)
+{
+    std::lock_guard<std::mutex> lck(this->mutex);
+    return this->_getDnpAddress(address, dnp_address);
+}
+
+bool DnpFile::hasDnpAddress(std::string address)
+{
+    std::lock_guard<std::mutex> lck(this->mutex);
+    return this->_hasDnpAddress(address);
+}
+
+bool DnpFile::_hasDnpAddress(std::string address)
+{
+    struct dnp_address tmp_address;
+    return this->_getDnpAddress(address, &tmp_address);
+}
+
+void DnpFile::_addDnpAddress(std::string address, std::string public_key, std::string private_key)
+{
+    if (public_key.empty() || address.empty())
+    {
+        throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "Expecting a public key and an address at the very least");
+    }
+
+    if (_hasDnpAddress(address))
+    {
+        throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "DNP Address is already registered with us");
+    }
+
+    struct dnp_address dnp_address;
+    memset(&dnp_address, 0, sizeof(dnp_address));
+
+    if (address.size() >= sizeof(dnp_address.address))
+    {
+        throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "DNP Address is too large");
+    }
+
+    RSA_PUBLIC_KEY_POSITION pub_key_pos = this->getFreePositionForDataOrThrow(public_key.size());
+    this->markDataTaken(pub_key_pos, public_key.size());
+    this->seek_and_write(pub_key_pos, public_key.c_str(), public_key.size());
+    RSA_PRIVATE_KEY_POSITION priv_key_pos = 0;
+    if (!private_key.empty())
+    {
+        priv_key_pos = this->getFreePositionForDataOrThrow(private_key.size());
+        this->markDataTaken(priv_key_pos, private_key.size());
+        this->seek_and_write(priv_key_pos, private_key.c_str(), private_key.size());
+    }
+
+    DNP_ADDRESS_POSITION dnp_address_pos = this->getFreePositionForDataOrThrow(sizeof(struct dnp_address));
+    this->markDataTaken(dnp_address_pos, sizeof(struct dnp_address));
+
+    memcpy(dnp_address.address, address.c_str(), sizeof(dnp_address.address));
+    dnp_address.public_key_pos = pub_key_pos;
+    dnp_address.public_key_size = public_key.size();
+    dnp_address.private_key_pos = priv_key_pos;
+    dnp_address.private_key_size = private_key.size();
+    seek_and_write(dnp_address_pos, (const char *)&dnp_address, sizeof(dnp_address));
+
+    DNP_ADDRESS_POSITION dnp_address_last_pos = this->loaded_file_header.current_dnp_address_position;
+    // Have we never created a DNP address before?
+    if (dnp_address_last_pos == 0)
+    {
+        // No we have not then its the first DNP address in the system
+        this->loaded_file_header.first_dnp_address_position = dnp_address_pos;
+        this->loaded_file_header.current_dnp_address_position = dnp_address_pos;
+    }
+    else
+    {
+        // Ok lets append like a linked list
+        struct dnp_address prev_dnp_address;
+        this->seek_and_read(dnp_address_last_pos, (char *)&prev_dnp_address, sizeof(prev_dnp_address));
+        prev_dnp_address.next = dnp_address_pos;
+        this->seek_and_write(dnp_address_last_pos, (char *)&prev_dnp_address, sizeof(prev_dnp_address));
+        this->loaded_file_header.current_dnp_address_position = dnp_address_pos;
+    }
+
+    this->writeFileHeader();
+}
+
+void DnpFile::addDnpAddress(std::string address, std::string public_key, std::string private_key)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    this->_addDnpAddress(address, public_key, private_key);
+}
+
 void DnpFile::addIp(std::string ip)
 {
-    //   std::lock_guard<std::mutex> lock(this->mutex);
+    std::lock_guard<std::mutex> lock(this->mutex);
     // Ip exists then we will not add it twice
     if (_doesIpExist(ip))
         return;
@@ -392,7 +490,6 @@ bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsig
     {
         if (ip_block.ip_block_header.next_block_pos != 0)
         {
-            std::cout << "going to next block: " << ip_block.ip_block_header.next_block_pos << std::endl;
             *current_index = 0;
             return getNextIp(ip_str, current_index, ip_block.ip_block_header.next_block_pos);
         }

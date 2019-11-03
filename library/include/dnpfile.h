@@ -5,6 +5,7 @@
 #include <fstream>
 #include <mutex>
 #include "dnp.h"
+#include "dnpmodshared.h"
 // This is a bit dirty to be honest maybe a better solution can be achieved
 #define TOTAL_IPS_IN_BLOCK (DNP_SECTOR_SIZE / sizeof(struct in_addr)) - sizeof(struct ip_block_header)
 namespace Dnp
@@ -29,6 +30,12 @@ struct file_header
 
     // The absolute position of the current IP block that is not full
     IP_BLOCK_POSITION current_ip_block_position;
+
+    // The position of the first generated dnp address block
+    DNP_ADDRESS_POSITION first_dnp_address_position;
+    // The position of the most recent DNP address block
+    DNP_ADDRESS_POSITION current_dnp_address_position;
+    
 };
 
 // Represents
@@ -54,6 +61,16 @@ struct ip_block
     struct in_addr ip[TOTAL_IPS_IN_BLOCK];
 };
 
+struct dnp_address
+{
+    char address[DNP_ID_SIZE];
+    RSA_PUBLIC_KEY_POSITION public_key_pos;
+    size_t public_key_size;
+    RSA_PRIVATE_KEY_POSITION private_key_pos;
+    size_t private_key_size;
+    DNP_ADDRESS_POSITION next;
+};
+
 class System;
 class DnpFile
 {
@@ -63,6 +80,10 @@ public:
     void openFile(std::string filename);
     std::string getNodeFilename();
 
+    bool getDnpAddress(std::string address, struct dnp_address* dnp_address);
+    bool hasDnpAddress(std::string address);
+    void addDnpAddress(std::string address, std::string public_key, std::string private_key);
+
     bool getFileHeader(struct file_header *header);
     bool doesIpExist(std::string ip);
     void addIp(std::string ip);
@@ -70,9 +91,10 @@ public:
    
 
 private:
-
+    bool _getDnpAddress(std::string address, struct dnp_address* dnp_address);
+    bool _hasDnpAddress(std::string address);
+    void _addDnpAddress(std::string address, std::string public_key, std::string private_key);
     bool _doesIpExist(std::string ip);
-
     void createCellTable();
     void loadFile(std::string filename);
     void setupFileAndOpen(std::string filename);

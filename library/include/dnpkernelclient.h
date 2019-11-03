@@ -16,7 +16,6 @@ public:
 
 protected:
     System *system;
-
 private:
     void start_thread();
     std::thread thread;

@@ -10,7 +10,9 @@ typedef unsigned int PROTOCOL_VERSION;
 typedef unsigned int DNP_FILE_FORMAT_VERSION;
 typedef unsigned long NODE_DATA_TABLE_OFFSET;
 typedef unsigned long IP_BLOCK_POSITION;
-
+typedef unsigned long DNP_ADDRESS_POSITION;
+typedef unsigned long RSA_PUBLIC_KEY_POSITION;
+typedef unsigned long RSA_PRIVATE_KEY_POSITION;
 
 #define DNP_SECTOR_FREE 0x00
 #define DNP_SECTOR_TAKEN 0xff
