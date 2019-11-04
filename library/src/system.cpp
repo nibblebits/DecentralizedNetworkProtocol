@@ -41,7 +41,7 @@ void System::host()
 
     kernel_client->start();
 
-    while(1)
+   // while(1)
     {
         
     }

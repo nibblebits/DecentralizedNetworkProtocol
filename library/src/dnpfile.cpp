@@ -380,7 +380,7 @@ void DnpFile::_addDnpAddress(std::string address, std::string public_key, std::s
     struct dnp_address dnp_address;
     memset(&dnp_address, 0, sizeof(dnp_address));
 
-    if (address.size() >= sizeof(dnp_address.address))
+    if (address.size() > sizeof(dnp_address.address))
     {
         throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "DNP Address is too large");
     }

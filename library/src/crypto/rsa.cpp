@@ -141,17 +141,12 @@ struct rsa_keypair Rsa::generateKeypair()
     pub_key[pub_len] = '\0';
     pri_key[pri_len] = '\0';
 
-    unsigned char pub_key_md5_out[MD5_DIGEST_LENGTH];
-    MD5((const unsigned char *)pub_key.get(), strlen(pub_key.get()), pub_key_md5_out);
-
-    unsigned char private_key_md5_out[MD5_DIGEST_LENGTH];
-    MD5((const unsigned char *)pri_key.get(), strlen(pri_key.get()), private_key_md5_out);
 
     struct rsa_keypair rsa_keypair;
     rsa_keypair.pub_key = std::string(pub_key.get());
     rsa_keypair.private_key = std::string(pri_key.get());
-    rsa_keypair.private_key_md5_hash = to_hex((const unsigned char *)&private_key_md5_out, MD5_DIGEST_LENGTH);
-    rsa_keypair.pub_key_md5_hash = to_hex((const unsigned char *)&pub_key_md5_out, MD5_DIGEST_LENGTH);
+    rsa_keypair.private_key_md5_hash = md5_hex(rsa_keypair.pub_key);
+    rsa_keypair.pub_key_md5_hash = md5_hex(rsa_keypair.private_key);
 
    
     return rsa_keypair;

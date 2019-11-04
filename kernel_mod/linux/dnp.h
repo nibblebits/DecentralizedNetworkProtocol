@@ -24,6 +24,8 @@ struct dnp_socket_option
 struct dnp_dnpdatagramsock
 {
     struct sock sk;
+    char send_from[DNP_ID_SIZE];
+	__u16 port;
 	struct dnp_socket_option options[DNP_MAX_OPTIONS];
 };
 

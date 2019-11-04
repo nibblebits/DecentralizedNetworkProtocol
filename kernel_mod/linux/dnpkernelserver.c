@@ -57,6 +57,7 @@ int dnp_kernel_server_send_packet(struct dnp_kernel_packet *packet)
     return dnp_kernel_server_send_packet_to_pid(packet, pid);
 }
 
+
 int dnp_kernel_server_create_address(char* gen_id_buf)
 {
     ENSURE_KERNEL_BINDED

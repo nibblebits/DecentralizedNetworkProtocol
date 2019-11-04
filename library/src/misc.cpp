@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdexcept>
+#include <iomanip>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
@@ -22,7 +23,7 @@ std::string to_hex(const unsigned char *buf, int length)
     std::stringstream ss;
     for (int i = 0; i < length; i++)
     {
-        ss << std::hex << (unsigned int)buf[i];
+        ss << std::hex << std::setw(2) << std::setfill('0') << (unsigned int)buf[i];
     }
 
     return ss.str();

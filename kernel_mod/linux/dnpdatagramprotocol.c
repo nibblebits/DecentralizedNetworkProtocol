@@ -71,31 +71,54 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		return -EDESTADDRREQ;
 	}
 
-	DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
-	if (!usin || msg->msg_namelen < sizeof(*usin))
+	
+	struct dnp_address *dnp_address = (struct dnp_address *)msg->msg_name;
+	if (dnp_address->addr == NULL)
 	{
-		printk(KERN_ERR "%s destination address is invalid\n", __FUNCTION__);
+		printk(KERN_ERR "%s dnp_address->addr is NULL\n", __FUNCTION__);
 		return -EINVAL;
 	}
 
-	if (usin->sin_family != DNP_FAMILY)
+	char send_to_addr[DNP_ID_SIZE];
+	if (copy_from_user(send_to_addr, dnp_address->addr, sizeof(send_to_addr)) != 0)
 	{
-		printk(KERN_ERR "%s message family is invalid, expecting DNP_FAMILY", __FUNCTION__);
-		return -EAFNOSUPPORT;
+		printk(KERN_ERR "%s failed to copy data from user process\n", __FUNCTION__);
+		return -EINVAL;
 	}
 
+	int err = 0;
 	struct iovec *iov = (struct iovec *)msg->msg_iter.iov;
+	NEW_DNP_KERNEL_PACKET(res_packet, -1)
 	NEW_DNP_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM)
-	memcpy(&packet->datagram_packet, iov->iov_base, iov->iov_len);
-	if (dnp_kernel_server_send_packet(packet) < 0)
+	memcpy(&packet->datagram_packet.buf, iov->iov_base, iov->iov_len);
+	memcpy(packet->datagram_packet.send_from.address, dnp_dnpdatagramsock(sock)->send_from, sizeof(packet->datagram_packet.send_from));
+	packet->datagram_packet.send_from.port = dnp_dnpdatagramsock(sock)->port;
+
+	err = dnp_kernel_server_send_and_wait(packet, res_packet);
+	if (err < 0)
 	{
-		printk(KERN_ERR "%s failed to send packet to kernel server has it crashed?\n", __FUNCTION__);
-		return -ECOMM;
+		printk(KERN_ERR "%s failed to send packet to kernel server has it crashed? err=%i\n", __FUNCTION__, err);
+		goto out;
 	}
 
+	if (res_packet->type != DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM_RESPONSE)
+	{
+		printk(KERN_ERR "%s response packet was not a DNP_KERNEL_SERVER_DATAGRAM_RES packet type, is this kernel server built for this module?\n", __FUNCTION__);
+		err = -EPROTO;
+		goto out;
+	}
+
+	if (res_packet->datagram_res_packet.res != DNP_KERNEL_SERVER_DATAGRAM_OK)
+	{
+		printk(KERN_ERR "%s failed to send datagram response_code=%i\n", __FUNCTION__, (int)res_packet->datagram_res_packet.res);
+		err = -EINVAL;
+		goto out;
+	}
+out:
+	FREE_DNP_KERNEL_PACKET(res_packet)
 	FREE_DNP_KERNEL_PACKET(packet)
 
-	return 0;
+	return err;
 }
 
 int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *m, size_t len,
@@ -105,7 +128,6 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *m, size_t len,
 
 	return -EOPNOTSUPP;
 }
-
 
 int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 {
@@ -136,9 +158,8 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	if (dnp_address->flags & DNP_ADDRESS_FLAG_GENERATE_ADDRESS)
 	{
 		// User wants a new DNP address so let's go and instruct the server to make us one
-		char gen_id[DNP_ID_SIZE+1];
+		char gen_id[DNP_ID_SIZE + 1];
 		gen_id[DNP_ID_SIZE] = 0;
-
 
 		err = dnp_kernel_server_create_address(gen_id);
 		if (err < 0)
@@ -165,6 +186,9 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 		goto out;
 	}
 
+	// Great let's now set the binded address in this socket
+	memcpy(dnp_dnpdatagramsock(sock)->send_from, &addr, sizeof(addr));
+	dnp_dnpdatagramsock(sock)->port = dnp_address->port;
 out:
 	return err;
 }

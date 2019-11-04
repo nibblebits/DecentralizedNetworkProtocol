@@ -39,7 +39,9 @@ protected:
     virtual DNP_LINUX_KERNEL_RECV_RES recv_packet(struct dnp_kernel_packet &kernel_packet);
     virtual void send_ping_packet();
     virtual void recv_ping_response();
-    void send_create_id_res_packet(DNP_SEMAPHORE_ID sem_id);
+    void create_dnp_id_then_respond(DNP_SEMAPHORE_ID sem_id);
+    void send_datagram_then_respond(struct dnp_kernel_packet packet);
+
 
 private:
     void set_socket_timeout(int seconds);
