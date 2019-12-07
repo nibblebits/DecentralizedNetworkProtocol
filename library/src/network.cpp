@@ -294,10 +294,6 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct 
     std::string their_ip = std::string(client_ip, strnlen(client_ip, INET_ADDRSTRLEN));
     std::string my_ip = std::string(packet->hello_packet.your_ip, INET_ADDRSTRLEN);
     this->our_ip = my_ip;
-    if (my_ip == their_ip && ntohs(client_address.sin_port) == ntohs(our_address.sin_port))
-    {
-        return;
-    }
 
     Packet packet_to_send = {0};
     packet_to_send.type = PACKET_TYPE_RESPOND_HELLO;
