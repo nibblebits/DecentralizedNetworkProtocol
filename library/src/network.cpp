@@ -221,8 +221,6 @@ void Network::broadcast(struct Packet *packet)
 
 void Network::addActiveIp(std::string ip)
 {
-    if (ip == this->our_ip)
-        return;
 
     if (std::find(this->active_ips.begin(), this->active_ips.end(), ip) == this->active_ips.end())
     {
