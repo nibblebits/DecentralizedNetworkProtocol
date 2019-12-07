@@ -50,6 +50,7 @@ struct dnp_protocol {
 	struct proto *proto;
 	int (*create)(struct net *net, struct socket *sock,
 		      const struct dnp_protocol *dnp_proto, int kern);
+	int (*datagram_recv)(struct dnp_kernel_packet* packet);
 };
 
 
@@ -64,6 +65,7 @@ void dnp_proto_unregister(const struct dnp_protocol *dnp_proto);
 void dnp_kernel_server_init(void);
 void dnp_kernel_server_exit(void);
 bool dnp_kernel_server_binded_to_pid(void);
+int dnp_get_protocol(int proto, const struct dnp_protocol** protocol);
 
 int dnp_kernel_server_create_address(char* gen_id_buf);
 int dnp_kernel_server_send_packet_to_pid(struct dnp_kernel_packet *packet, __u32 _pid);
@@ -80,5 +82,6 @@ bool dnp_has_sock(struct list_head* list, struct socket* socket);
 struct dnp_socket* dnp_get_dnp_socket_by_socket(struct list_head* list, struct socket* socket);
 int dnp_remove_socket(struct list_head* list, struct socket* sock);
 int dnp_add_sock(struct list_head* list, struct socket* sock);
+struct dnp_socket* dnp_get_socket_by_address(struct list_head* list, struct dnp_kernel_address* addr);
 
 #endif

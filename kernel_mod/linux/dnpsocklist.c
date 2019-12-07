@@ -12,6 +12,22 @@ bool dnp_has_sock(struct list_head *list, struct socket *socket)
     return false;
 }
 
+struct dnp_socket* dnp_get_socket_by_address(struct list_head* list, struct dnp_kernel_address* addr)
+{
+    struct dnp_socket* ptr = NULL;
+    list_for_each_entry(ptr, list, list)
+    {
+        struct socket* sock = ptr->sock;
+        struct dnp_dnpdatagramsock* datagram_sock = dnp_dnpdatagramsock(sock->sk);
+        if(memcmp(datagram_sock->addr, addr->address, sizeof(datagram_sock->addr)) == 0 && datagram_sock->port == addr->port)
+        {
+            return ptr;
+        }
+    }
+
+    return NULL;
+}
+
 struct dnp_socket *dnp_get_dnp_socket_by_socket(struct list_head *list, struct socket *socket)
 {
     struct dnp_socket *ptr = NULL;
@@ -26,20 +42,17 @@ struct dnp_socket *dnp_get_dnp_socket_by_socket(struct list_head *list, struct s
 
 int dnp_remove_socket(struct list_head *list, struct socket *sock)
 {
-    printk(KERN_INFO "Removing socket from list\n", __FUNCTION__);
     struct dnp_socket *dnp_socket = dnp_get_dnp_socket_by_socket(list, sock);
     if (!dnp_socket)
         return -EIO;
 
     list_del(&dnp_socket->list);
-    printk(KERN_INFO "Leave\n", __FUNCTION__);
 
     return 0;
 }
 
 int dnp_add_sock(struct list_head *list, struct socket *sock)
 {
-    printk(KERN_INFO "Adding socket to list\n", __FUNCTION__);
     if (dnp_has_sock(list, sock))
     {
         return -EIO;
@@ -49,7 +62,6 @@ int dnp_add_sock(struct list_head *list, struct socket *sock)
     dnp_socket->sock = sock;
 
     list_add(&dnp_socket->list, list);
-    printk(KERN_INFO "Leave\n", __FUNCTION__);
 
     return 0;
 }

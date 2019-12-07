@@ -34,6 +34,15 @@ static const struct net_proto_family dnp_sock_family_ops = {
 };
 
 
+int dnp_get_protocol(int proto, const struct dnp_protocol** protocol)
+{
+	if (proto < 0 || proto >= DNP_MAX_PROTOCOLS)
+		return -EINVAL;
+
+	*protocol = proto_tab[proto];
+	return 0;
+}
+
 int dnp_proto_register(const struct dnp_protocol *dnp_proto)
 {
 	int rc;

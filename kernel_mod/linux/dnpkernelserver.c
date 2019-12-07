@@ -123,9 +123,6 @@ void dnp_kernel_server_handle_hello_packet(struct nlmsghdr *nlh, struct dnp_kern
     FREE_DNP_KERNEL_PACKET(res_packet)
 }
 
-void dnp_kernel_server_handle_create_id_res(struct nlmsghdr *nlh, struct dnp_kernel_packet *packet)
-{
-}
 
 DNP_SEMAPHORE_ID dnp_kernel_server_create_send_and_wait(void)
 {
@@ -225,7 +222,25 @@ out:
 void dnp_kernel_server_handle_recv_datagram_packet(struct nlmsghdr* nlh, struct dnp_kernel_packet* packet)
 {
     printk(KERN_INFO "%s Handling recieved datagram packet\n", __FUNCTION__);
-    
+    const struct dnp_protocol* protocol = NULL;
+    int res = dnp_get_protocol(DNP_DATAGRAM_PROTOCOL, &protocol);
+    if (res < 0)
+    {
+        printk(KERN_ERR "%s Protocol %i could not be found\n", __FUNCTION__, res);
+        return;
+    }
+
+    if (protocol->datagram_recv == NULL)
+    {
+        printk(KERN_ERR "%s Protocol datagram_recv not implemented\n", __FUNCTION__);
+        return;
+    }
+
+    res = protocol->datagram_recv(packet);
+    if (res < 0)
+    {
+        printk(KERN_ERR "%s Bad response %i\n", __FUNCTION__, res);
+    }
 
 }
 

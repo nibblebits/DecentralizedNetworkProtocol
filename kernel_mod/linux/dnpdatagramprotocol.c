@@ -255,6 +255,19 @@ static int dnpdatagramsock_create(struct net *net, struct socket *sock,
 	return 0;
 }
 
+static int dnpdatagramsock_recv(struct dnp_kernel_packet* packet)
+{
+	printk("%s packet processing\n", __FUNCTION__);
+	struct dnp_socket* sock = dnp_get_socket_by_address(sock_list, &packet->datagram_packet.send_to);
+	if (!sock)
+	{
+		printk(KERN_ERR "%s socket could not be located, it must not be binded\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static struct proto dnpdatagramsock_proto = {
 	.name = "DNP_DATAGRAM_PROT",
 	.owner = THIS_MODULE,
@@ -264,7 +277,9 @@ static struct proto dnpdatagramsock_proto = {
 static const struct dnp_protocol dnpdatagram_proto = {
 	.id = DNP_DATAGRAM_PROTOCOL,
 	.proto = &dnpdatagramsock_proto,
-	.create = dnpdatagramsock_create};
+	.create = dnpdatagramsock_create,
+	.datagram_recv = dnpdatagramsock_recv,
+};
 
 int dnpdatagramprotocol_init(void)
 {
