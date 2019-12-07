@@ -29,22 +29,19 @@ int main()
     }
     memset(&servaddr, 0, sizeof(servaddr));
 
-    char addr[DNP_ID_SIZE+1];
-    addr[DNP_ID_SIZE] = 0;
-    memcpy(addr, "fffffffffffffffffffffffffffffff", sizeof(addr));
+    char addr[DNP_ID_SIZE];
+    memcpy(addr, "1491f2c8c1c3fb3286869b47bd3d6b68", sizeof(addr));
 
     // Filling server information
     servaddr.port = htons(PORT);
     servaddr.addr = addr;
-    servaddr.flags = DNP_ADDRESS_FLAG_GENERATE_ADDRESS;
+    servaddr.flags = 0;
     int res = bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
     if (res < 0)
     {
         printf("Failed to bind! Size=: %i\n", (int)sizeof(servaddr));
         printf("%s\n", strerror(res));
     }
-
-    printf("%s\n", (char*) &addr);
 
     int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &servaddr, sizeof(servaddr));
     if (rc < 0)

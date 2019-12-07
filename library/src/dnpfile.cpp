@@ -323,7 +323,7 @@ bool DnpFile::_doesIpExist(std::string ip)
 {
     std::string ip_str;
     unsigned long current_index = 0;
-    while (getNextIp(ip_str, &current_index))
+    while (_getNextIp(ip_str, &current_index))
     {
         if (ip_str == ip)
             return true;
@@ -473,9 +473,8 @@ unsigned long DnpFile::getCurrentIpBlock()
     return this->loaded_file_header.current_ip_block_position;
 }
 
-bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsigned long ip_block_pos)
+bool DnpFile::_getNextIp(std::string &ip_str, unsigned long* current_index, unsigned long ip_block_pos)
 {
-    std::lock_guard<std::mutex> lock(this->mutex);
     // No IP block position provided then default to the first block!
     if (ip_block_pos == -1)
     {
@@ -511,4 +510,11 @@ bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsig
     *current_index += 1;
 
     return true;
+
+
+}
+bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsigned long ip_block_pos)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    return _getNextIp(ip_str, current_index, ip_block_pos);
 }

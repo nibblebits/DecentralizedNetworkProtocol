@@ -16,7 +16,8 @@ void createDnpFile()
   struct rsa_keypair keypair = Rsa::generateKeypair();
   std::cout << "PUB KEY HASH: " << keypair.pub_key_md5_hash << std::endl;
   dnp_file.addDnpAddress(keypair.pub_key_md5_hash, keypair.pub_key, keypair.private_key);
-  //dnp_file.addIp("178.62.113.46");
+
+  dnp_file.addIp("82.31.214.2");
   
 }
 

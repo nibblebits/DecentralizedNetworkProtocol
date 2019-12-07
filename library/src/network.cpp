@@ -304,8 +304,6 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct 
     memcpy(packet_to_send.hello_packet.your_ip, their_ip.c_str(), their_ip.size());
     sendPacket(their_ip, &packet_to_send);
 
-    std::cout << their_ip << std::endl;
-
     // Let's send all our known active ip's to this guy
     for (std::string ip : this->active_ips)
     {

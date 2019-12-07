@@ -2,6 +2,7 @@
 #include "dnpkernelclient.h"
 #include "system.h"
 #include <unistd.h>
+#include <iostream>
 
 using namespace Dnp;
 
@@ -23,5 +24,6 @@ void DnpKernelClient::start()
 
 void DnpKernelClient::start_thread()
 {
+    std::cout << "thread started" << std::endl;
     this->thread = std::thread(&DnpKernelClient::run, this);
 }

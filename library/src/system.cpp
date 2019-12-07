@@ -33,26 +33,24 @@ System::~System()
     delete this->kernel_client;
 }
 
-
 void System::host()
 {
     this->thread_pool->start();
     dnp_file->openFile("./test.dnp");
 
+    network->begin();
+    network->bindMyself();
+    network->scan();
+
     kernel_client->start();
 
-   // while(1)
+    while (1)
     {
-        
+        usleep(50);
     }
-    ///network->begin();
-    //network->bindMyself();
-    //network->scan();
-
 }
 
-
-ThreadPool* System::getThreadPool()
+ThreadPool *System::getThreadPool()
 {
     return this->thread_pool;
 }
@@ -64,5 +62,4 @@ DnpFile *System::getDnpFile()
 
 void System::process()
 {
-   
 }

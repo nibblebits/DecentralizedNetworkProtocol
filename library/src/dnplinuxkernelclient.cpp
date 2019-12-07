@@ -89,7 +89,8 @@ DNP_LINUX_KERNEL_RECV_RES DnpLinuxKernelClient::recv_packet(struct dnp_kernel_pa
 
     struct iovec iov;
     struct msghdr msg;
-
+    memset(&msg, 0, sizeof(struct msghdr));
+    memset(&iov, 0, sizeof(iov));
     iov.iov_base = (void *)msghdr;
     iov.iov_len = msghdr->nlmsg_len;
     msg.msg_name = (void *)&dest_addr;
@@ -98,6 +99,7 @@ DNP_LINUX_KERNEL_RECV_RES DnpLinuxKernelClient::recv_packet(struct dnp_kernel_pa
     msg.msg_iovlen = 1;
 
     memset(&kernel_packet, 0, sizeof(kernel_packet));
+    set_socket_timeout(3);
     if (recvmsg(sock, &msg, 0) < 0)
     {
         return DNP_LINUX_KERNEL_RECV_ERROR;
@@ -175,6 +177,7 @@ void DnpLinuxKernelClient::create_dnp_id_then_respond(DNP_SEMAPHORE_ID sem_id)
 
     if (send_packet(packet) != DNP_LINUX_KERNEL_SEND_OK)
         throw DnpException(DNP_EXCEPTION_KERNEL_CLIENT_PACKET_SEND_FAILURE, "Something went wrong sending the create id response to the kernel");
+
 }
 
 void DnpLinuxKernelClient::send_datagram_then_respond(struct dnp_kernel_packet packet)
@@ -190,20 +193,18 @@ void DnpLinuxKernelClient::send_datagram_then_respond(struct dnp_kernel_packet p
     memcpy(buf, packet.datagram_packet.buf, DNP_ID_SIZE);
 
     DnpFile *dnp_file = this->system->getDnpFile();
-    if (!dnp_file->hasDnpAddress(std::string(buf, DNP_ID_SIZE)))
+    if (!dnp_file->hasDnpAddress(std::string(packet.datagram_packet.send_from.address, DNP_ID_SIZE)))
     {
         res_packet.datagram_res_packet.res = DNP_KERNEL_SERVER_DATAGRAM_FAILED_ILLEGAL_ADDRESS;
     }
 
     // send the packet to the decentralized network
-
+    
     res_packet.sem_id = packet.sem_id;
-
-    if (send_packet(packet) != DNP_LINUX_KERNEL_SEND_OK)
+    if (send_packet(res_packet) != DNP_LINUX_KERNEL_SEND_OK)
     {
         throw DnpException(DNP_EXCEPTION_KERNEL_CLIENT_PACKET_SEND_FAILURE, "Failed to send datagram response back to the kernel");
     }
-    
 }
 
 void DnpLinuxKernelClient::run()
@@ -218,11 +219,14 @@ void DnpLinuxKernelClient::run()
             switch (packet.type)
             {
             case DNP_KERNEL_PACKET_TYPE_CREATE_ID:
-                thread_pool->addTask(std::bind(&DnpLinuxKernelClient::create_dnp_id_then_respond, this, packet.sem_id));
+                create_dnp_id_then_respond(packet.sem_id);
+                //thread_pool->addTask(std::bind(&DnpLinuxKernelClient::create_dnp_id_then_respond, this, packet.sem_id));
                 break;
 
             case DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM:
-                thread_pool->addTask(std::bind(&DnpLinuxKernelClient::send_datagram_then_respond, this, packet));
+                send_datagram_then_respond(packet);
+                //thread_pool->addTask(std::bind(&DnpLinuxKernelClient::send_datagram_then_respond, this, packet));
+                break;
             }
         }
         catch (Dnp::DnpException &ex)

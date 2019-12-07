@@ -91,6 +91,7 @@ public:
    
 
 private:
+    bool _getNextIp(std::string &ip_str, unsigned long* current_index, unsigned long ip_block_pos=-1);
     bool _getDnpAddress(std::string address, struct dnp_address* dnp_address);
     bool _hasDnpAddress(std::string address);
     void _addDnpAddress(std::string address, std::string public_key, std::string private_key);

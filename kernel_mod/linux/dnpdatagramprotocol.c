@@ -158,9 +158,7 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	if (dnp_address->flags & DNP_ADDRESS_FLAG_GENERATE_ADDRESS)
 	{
 		// User wants a new DNP address so let's go and instruct the server to make us one
-		char gen_id[DNP_ID_SIZE + 1];
-		gen_id[DNP_ID_SIZE] = 0;
-
+		char gen_id[DNP_ID_SIZE];
 		err = dnp_kernel_server_create_address(gen_id);
 		if (err < 0)
 		{
@@ -174,6 +172,7 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 			printk(KERN_ERR "%s failed to copy generated DNP address to user space, err=%i\n", __FUNCTION__, err);
 			goto out;
 		}
+		memcpy(addr, gen_id, sizeof(gen_id));
 	}
 
 	__u16 port = dnp_address->port;
