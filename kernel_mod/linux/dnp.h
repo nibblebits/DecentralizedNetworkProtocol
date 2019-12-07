@@ -24,7 +24,7 @@ struct dnp_socket_option
 struct dnp_dnpdatagramsock
 {
     struct sock sk;
-    char send_from[DNP_ID_SIZE];
+    char addr[DNP_ID_SIZE];
 	__u16 port;
 	struct dnp_socket_option options[DNP_MAX_OPTIONS];
 };
@@ -36,6 +36,12 @@ struct dnp_binded_port
 	// Socket that is binded to this port
 	struct socket* sock;
 	__u16 port;
+	struct list_head list;
+};
+
+struct dnp_socket
+{
+	struct socket* sock;
 	struct list_head list;
 };
 
@@ -69,5 +75,10 @@ int dnp_set_port(struct list_head* list, __u16 port, struct socket* sock);
 bool dnp_is_port_set(struct list_head* list, __u16 port);
 struct dnp_binded_port* dnp_get_port_by_socket(struct list_head* list, struct socket* socket);
 int dnp_remove_port(struct list_head* list, struct socket* sock);
+
+bool dnp_has_sock(struct list_head* list, struct socket* socket);
+struct dnp_socket* dnp_get_dnp_socket_by_socket(struct list_head* list, struct socket* socket);
+int dnp_remove_socket(struct list_head* list, struct socket* sock);
+int dnp_add_sock(struct list_head* list, struct socket* sock);
 
 #endif

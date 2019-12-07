@@ -30,6 +30,7 @@ static const struct net_proto_family dnp_sock_family_ops = {
 	.owner  = THIS_MODULE,
 	.family = DNP_FAMILY,
 	.create = dnp_sock_create,
+
 };
 
 

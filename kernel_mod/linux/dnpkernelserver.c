@@ -224,8 +224,9 @@ out:
 
 void dnp_kernel_server_handle_recv_datagram_packet(struct nlmsghdr* nlh, struct dnp_kernel_packet* packet)
 {
-    printk(KERN_INFO "%s Handling recieved datagram packet\n", FUNCTION);
+    printk(KERN_INFO "%s Handling recieved datagram packet\n", __FUNCTION__);
     
+
 }
 
 void dnp_kernel_server_handle_packet(struct nlmsghdr *nlh, struct dnp_kernel_packet *packet)

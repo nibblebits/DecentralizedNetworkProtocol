@@ -5,6 +5,9 @@
 LIST_HEAD(root_port_list);
 DEFINE_MUTEX(port_list_mutex);
 
+LIST_HEAD(sock_list);
+DEFINE_MUTEX(sock_list_mutex);
+
 static int dnpdatagramsock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
@@ -13,6 +16,9 @@ static int dnpdatagramsock_release(struct socket *sock)
 	if (!sk)
 		return 0;
 
+	mutex_lock(&sock_list_mutex);
+	dnp_remove_socket(&sock_list, sock);
+	mutex_unlock(&sock_list_mutex);
 	mutex_lock(&port_list_mutex);
 	dnp_remove_port(&root_port_list, sock);
 	mutex_unlock(&port_list_mutex);
@@ -71,7 +77,6 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		return -EDESTADDRREQ;
 	}
 
-	
 	struct dnp_address *dnp_address = (struct dnp_address *)msg->msg_name;
 	if (dnp_address->addr == NULL)
 	{
@@ -91,7 +96,7 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	NEW_DNP_KERNEL_PACKET(res_packet, -1)
 	NEW_DNP_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM)
 	memcpy(&packet->datagram_packet.buf, iov->iov_base, iov->iov_len);
-	memcpy(packet->datagram_packet.send_from.address, dnp_dnpdatagramsock(sock)->send_from, sizeof(packet->datagram_packet.send_from));
+	memcpy(packet->datagram_packet.send_from.address, dnp_dnpdatagramsock(sock)->addr, sizeof(packet->datagram_packet.send_from));
 	packet->datagram_packet.send_from.port = dnp_dnpdatagramsock(sock)->port;
 
 	err = dnp_kernel_server_send_and_wait(packet, res_packet);
@@ -186,7 +191,7 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	}
 
 	// Great let's now set the binded address in this socket
-	memcpy(dnp_dnpdatagramsock(sock)->send_from, &addr, sizeof(addr));
+	memcpy(dnp_dnpdatagramsock(sock)->addr, &addr, sizeof(addr));
 	dnp_dnpdatagramsock(sock)->port = dnp_address->port;
 out:
 	return err;
@@ -243,6 +248,10 @@ static int dnpdatagramsock_create(struct net *net, struct socket *sock,
 	// Initialize this socket
 	dnpdatagramsock_init(dnp_dnpdatagramsock(sk));
 
+	// Let's add the socket to the list
+	mutex_lock(&sock_list_mutex);
+	dnp_add_sock(&sock_list, sock);
+	mutex_unlock(&sock_list_mutex);
 	return 0;
 }
 
