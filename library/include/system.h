@@ -47,6 +47,8 @@ namespace Dnp
         void process();
         
         ThreadPool* getThreadPool();
+        Network* getNetwork();
+        DnpLinuxKernelClient* getKernelClient();
   
     private:
         DnpFile* dnp_file;

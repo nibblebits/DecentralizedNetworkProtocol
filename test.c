@@ -35,7 +35,7 @@ int main()
     // Filling server information
     servaddr.port = htons(PORT);
     servaddr.addr = addr;
-    servaddr.flags = 0;
+    servaddr.flags = DNP_ADDRESS_FLAG_GENERATE_ADDRESS;
     int res = bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
     if (res < 0)
     {

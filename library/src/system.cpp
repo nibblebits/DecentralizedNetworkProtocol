@@ -55,6 +55,16 @@ ThreadPool *System::getThreadPool()
     return this->thread_pool;
 }
 
+Network* System::getNetwork()
+{
+    return this->network;
+}
+
+DnpLinuxKernelClient* System::getKernelClient()
+{
+    return this->kernel_client;
+}
+
 DnpFile *System::getDnpFile()
 {
     return this->dnp_file;

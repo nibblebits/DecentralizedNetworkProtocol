@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "config.h"
 #include "types.h"
+#include "dnpmodshared.h"
 #include <string>
 #include <vector>
 #include <thread>
@@ -37,98 +38,108 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 namespace Dnp
 {
-    class DnpFile;
+class DnpFile;
 
-    typedef unsigned short PACKET_TYPE;
-    enum
-    {
-        PACKET_TYPE_INITIAL_HELLO,
-        PACKET_TYPE_RESPOND_HELLO,
-        PACKET_TYPE_ACTIVE_IP,
-        PACKET_TYPE_PING,
-    };
+typedef unsigned short PACKET_TYPE;
+enum
+{
+    PACKET_TYPE_INITIAL_HELLO,
+    PACKET_TYPE_RESPOND_HELLO,
+    PACKET_TYPE_ACTIVE_IP,
+    PACKET_TYPE_PING,
+    PACKET_TYPE_DATAGRAM
+};
 
-    struct HelloPacket
-    {
-        // The IP Of the person we are connecting to. Let them know who they are
-        char your_ip[INET_ADDRSTRLEN];
-        unsigned short your_ip_len;
-    };
+struct HelloPacket
+{
+    // The IP Of the person we are connecting to. Let them know who they are
+    char your_ip[INET_ADDRSTRLEN];
+    unsigned short your_ip_len;
+};
 
-    /*
+/*
     * Sent to clients to tell them about a currently active ip.
     */
-    struct ActiveIpPacket
-    {
-        // The activated IP
-        char ip_address[INET_ADDRSTRLEN];
+struct ActiveIpPacket
+{
+    // The activated IP
+    char ip_address[INET_ADDRSTRLEN];
+};
+
+struct DnpAddress
+{
+    char address[DNP_ID_SIZE];
+    unsigned short port;
+};
+
+struct DnpDatagramPacket
+{
+    struct DnpAddress send_from;
+    struct DnpAddress send_to;
+    // Data buffer containing the data to send
+    char buf[DNP_MAX_DATAGRAM_PACKET_SIZE];
+};
+
+struct Packet
+{
+    PACKET_TYPE type;
+    union {
+        struct HelloPacket hello_packet;
+        struct ActiveIpPacket active_ip_packet;
+        struct DnpDatagramPacket datagram_packet;
     };
+};
 
+class System;
+class Network
+{
+public:
+    Network();
+    Network(System *system);
+    virtual ~Network();
 
-  
+    void begin();
+    void scan();
+    void bindMyself();
 
-    struct Packet
-    {
-        PACKET_TYPE type;
-        union
-        {
-            struct HelloPacket hello_packet;
-            struct ActiveIpPacket active_ip_packet;
-        };
-    };
+    void sendPacket(std::string ip, struct Packet *packet);
+    void broadcast(struct Packet *packet);
 
-    class System;
-    class Network
-    {
-    public:
-        Network();
-        Network(System* system);
-        virtual ~Network();
+private:
+    void ping();
+    void addActiveIp(std::string ip);
+    bool isActiveIp(std::string ip);
+    void handleIncomingPacket(struct sockaddr_in client_address, struct Packet *packet);
+    void handleInitalHelloPacket(struct sockaddr_in client_address, struct Packet *packet);
+    void handleHelloRespondPacket(struct sockaddr_in client_address, struct Packet *packet);
+    void handleActiveIpPacket(struct sockaddr_in client_address, struct Packet *packet);
+    void handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet);
 
-        void begin();
-        void scan();
-        void bindMyself();
+    void createActiveIpPacket(std::string ip, struct Packet *packet);
+    int get_valid_socket(struct sockaddr_in *servaddr);
+    static void network_recv_thread_operation(Network *network);
+    static void network_general_thread_operation(Network *network);
 
-        void sendPacket(std::string ip, struct Packet* packet);
+    void network_recv_thread_run();
+    void network_general_thread_run();
+    std::vector<std::string> known_ips;
+    std::vector<std::string> active_ips;
+    std::thread network_recv_thread;
+    std::thread network_general_thread;
 
-        void broadcast(struct Packet* packet);
+    std::mutex thread_lock;
+    std::condition_variable binded_cv;
+    bool is_binded;
+    int our_socket;
+    struct sockaddr_in our_address;
+    // Our remote ip address, blank until we receive a hello packet
+    std::string our_ip;
 
-    private:
-        void ping();
-        void addActiveIp(std::string ip);
-        bool isActiveIp(std::string ip);
-        void handleIncomingPacket(struct sockaddr_in client_address, struct Packet* packet);
-        void handleInitalHelloPacket(struct sockaddr_in client_address, struct Packet* packet);
-        void handleHelloRespondPacket(struct sockaddr_in client_address, struct Packet* packet);
-        void handleActiveIpPacket(struct sockaddr_in client_address, struct Packet* packet);
+    // Our DNP file where we will be storing data to
+    DnpFile *dnp_file;
 
-
-        void createActiveIpPacket(std::string ip, struct Packet* packet);
-        int get_valid_socket(struct sockaddr_in* servaddr);
-        static void network_recv_thread_operation(Network* network);
-        static void network_general_thread_operation(Network* network);
-
-        void network_recv_thread_run();
-        void network_general_thread_run();
-        std::vector<std::string> known_ips;
-        std::vector<std::string> active_ips;
-        std::thread network_recv_thread;
-        std::thread network_general_thread;
-
-        std::mutex thread_lock;
-        std::condition_variable binded_cv;
-        bool is_binded;
-        int our_socket;
-        struct sockaddr_in our_address;
-        // Our remote ip address, blank until we receive a hello packet
-        std::string our_ip;
-
-        // Our DNP file where we will be storing data to
-        DnpFile* dnp_file;
-
-        System* system;
-
-    };
-}
+    System *system;
+};
+} // namespace Dnp
 
 #endif

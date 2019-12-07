@@ -20,7 +20,6 @@ typedef int DNP_LINUX_KERNEL_SEND_RES;
 
 #define DNP_KERNEL_TIMEOUT_SECONDS 5
 
-#define CREATE_KERNEL_PACKET(name, type) struct dnp_kernel_packet name; init_packet(type, name);
 namespace Dnp
 {
 class System;
@@ -33,6 +32,7 @@ public:
     virtual void start();
     virtual void run();
 
+    void sendPacketToKernel(struct dnp_kernel_packet& packet);
 protected:
     void init_packet(DNP_KERNEL_PACKET_TYPE type, struct dnp_kernel_packet& kernel_packet);
     virtual DNP_LINUX_KERNEL_SEND_RES send_packet(const struct dnp_kernel_packet &kernel_packet);
@@ -41,9 +41,10 @@ protected:
     virtual void recv_ping_response();
     void create_dnp_id_then_respond(DNP_SEMAPHORE_ID sem_id);
     void send_datagram_then_respond(struct dnp_kernel_packet packet);
-
+    void send_datagram_then_respond_impl(struct dnp_kernel_packet &res_packet, struct dnp_kernel_packet &packet);
 
 private:
+    void initNetworkDatagramPacketFromKernelPacket(struct Packet& net_packet, struct dnp_kernel_packet& kern_packet);
     void set_socket_timeout(int seconds);
     void bind_socket();
 

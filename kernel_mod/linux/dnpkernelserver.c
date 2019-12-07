@@ -222,6 +222,12 @@ out:
     mutex_unlock(&send_and_wait_lock);
 }
 
+void dnp_kernel_server_handle_recv_datagram_packet(struct nlmsghdr* nlh, struct dnp_kernel_packet* packet)
+{
+    printk(KERN_INFO "%s Handling recieved datagram packet\n", FUNCTION);
+    
+}
+
 void dnp_kernel_server_handle_packet(struct nlmsghdr *nlh, struct dnp_kernel_packet *packet)
 {
 
@@ -237,6 +243,14 @@ void dnp_kernel_server_handle_packet(struct nlmsghdr *nlh, struct dnp_kernel_pac
 
     case DNP_KERNEL_PACKET_TYPE_CREATE_ID_RESPONSE:
     // Do nothing we handle this else where
+    break;
+
+    case DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM_RESPONSE:
+    // Do nothing we handle this else where
+    break;
+
+    case DNP_KERNEL_PACKET_TYPE_RECV_DATAGRAM:
+        dnp_kernel_server_handle_recv_datagram_packet(nlh, packet);
     break;
 
     default:

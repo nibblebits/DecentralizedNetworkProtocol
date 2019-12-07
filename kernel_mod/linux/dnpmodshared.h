@@ -30,6 +30,8 @@ enum
     DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM_RESPONSE,
     DNP_KERNEL_PACKET_TYPE_CREATE_ID,
     DNP_KERNEL_PACKET_TYPE_CREATE_ID_RESPONSE,
+    DNP_KERNEL_PACKET_TYPE_RECV_DATAGRAM,
+
 };
 
 enum
@@ -74,6 +76,16 @@ struct dnp_kernel_address
     unsigned short port;
 };
 
+
+struct dnp_kernel_packet_recv_datagram
+{
+    struct dnp_kernel_address send_from;
+    struct dnp_kernel_address send_to;
+    // Data buffer containing the data to send
+    char buf[DNP_MAX_DATAGRAM_PACKET_SIZE];
+};
+
+
 struct dnp_kernel_packet_datagram
 {
     struct dnp_kernel_address send_from;
@@ -106,6 +118,7 @@ struct dnp_kernel_packet
         struct dnp_kernel_packet_hello_response hello_res_packet;
         struct dnp_kernel_packet_datagram datagram_packet;
         struct dnp_kernel_packet_datagram_res datagram_res_packet;
+        struct dnp_kernel_packet_recv_datagram recv_datagram_packet;
         struct dnp_kernel_packet_create_id_packet create_id_packet;
         struct dnp_kernel_packet_create_id_res create_id_packet_res;
     };
@@ -123,5 +136,12 @@ struct dnp_address
     unsigned short port;
     DNP_ADDRESS_FLAGS flags;
 };
+
+#define CREATE_KERNEL_PACKET(name, _type)                \
+    struct dnp_kernel_packet name;                      \
+    memset(&name, 0, sizeof(struct dnp_kernel_packet)); \
+    name.type = _type;                                   \
+    name.sem_id = -1;
+
 
 #endif

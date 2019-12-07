@@ -177,18 +177,25 @@ void DnpLinuxKernelClient::create_dnp_id_then_respond(DNP_SEMAPHORE_ID sem_id)
 
     if (send_packet(packet) != DNP_LINUX_KERNEL_SEND_OK)
         throw DnpException(DNP_EXCEPTION_KERNEL_CLIENT_PACKET_SEND_FAILURE, "Something went wrong sending the create id response to the kernel");
-
 }
 
-void DnpLinuxKernelClient::send_datagram_then_respond(struct dnp_kernel_packet packet)
+void DnpLinuxKernelClient::initNetworkDatagramPacketFromKernelPacket(struct Packet &net_packet, struct dnp_kernel_packet &kern_packet)
+{
+    net_packet.type = PACKET_TYPE_DATAGRAM;
+    memcpy(net_packet.datagram_packet.send_from.address, kern_packet.datagram_packet.send_from.address, sizeof(net_packet.datagram_packet.send_from.address));
+    net_packet.datagram_packet.send_from.port = kern_packet.datagram_packet.send_from.port;
+    memcpy(net_packet.datagram_packet.send_to.address, kern_packet.datagram_packet.send_to.address, sizeof(net_packet.datagram_packet.send_to.address));
+    net_packet.datagram_packet.send_to.port = kern_packet.datagram_packet.send_to.port;
+    memcpy(net_packet.datagram_packet.buf, kern_packet.datagram_packet.buf, sizeof(net_packet.datagram_packet.buf));
+}
+
+void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_packet &res_packet, struct dnp_kernel_packet &packet)
 {
     if (packet.type != DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM)
     {
         throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "You passed in an illegal packet, we are expecting a DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM");
     }
 
-    CREATE_KERNEL_PACKET(res_packet, DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM_RESPONSE)
-    res_packet.datagram_res_packet.res = DNP_KERNEL_SERVER_DATAGRAM_OK;
     char buf[DNP_ID_SIZE];
     memcpy(buf, packet.datagram_packet.buf, DNP_ID_SIZE);
 
@@ -196,15 +203,38 @@ void DnpLinuxKernelClient::send_datagram_then_respond(struct dnp_kernel_packet p
     if (!dnp_file->hasDnpAddress(std::string(packet.datagram_packet.send_from.address, DNP_ID_SIZE)))
     {
         res_packet.datagram_res_packet.res = DNP_KERNEL_SERVER_DATAGRAM_FAILED_ILLEGAL_ADDRESS;
+        return;
     }
 
     // send the packet to the decentralized network
-    
+    struct Packet net_packet;
+    initNetworkDatagramPacketFromKernelPacket(net_packet, packet);
+    this->system->getNetwork()->broadcast(&net_packet);
+}
+
+void DnpLinuxKernelClient::send_datagram_then_respond(struct dnp_kernel_packet packet)
+{
+    CREATE_KERNEL_PACKET(res_packet, DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM_RESPONSE)
+    res_packet.datagram_res_packet.res = DNP_KERNEL_SERVER_DATAGRAM_OK;
     res_packet.sem_id = packet.sem_id;
+    try
+    {
+        send_datagram_then_respond_impl(res_packet, packet);
+    }
+    catch (std::exception &ex)
+    {
+        res_packet.datagram_res_packet.res = DNP_KERNEL_SERVER_DATAGRAM_FAILED_UNKNOWN;
+    }
+
     if (send_packet(res_packet) != DNP_LINUX_KERNEL_SEND_OK)
     {
         throw DnpException(DNP_EXCEPTION_KERNEL_CLIENT_PACKET_SEND_FAILURE, "Failed to send datagram response back to the kernel");
     }
+}
+
+void DnpLinuxKernelClient::sendPacketToKernel(struct dnp_kernel_packet& packet)
+{
+    send_packet(packet);
 }
 
 void DnpLinuxKernelClient::run()

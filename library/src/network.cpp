@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "config.h"
 #include "dnpfile.h"
 #include "dnpexception.h"
+#include "dnpmodshared.h"
 #include "misc.h"
 #include "crypto/rsa.h"
 #include <iostream>
@@ -270,8 +271,9 @@ void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Pac
             handleActiveIpPacket(client_address, packet);
             break;
 
-    
-
+        case PACKET_TYPE_DATAGRAM:
+            handleDatagramPacket(client_address, packet);
+        break;
         case PACKET_TYPE_PING:
             // Do nothing ping recieved used to keep nat open
             break;
@@ -324,4 +326,16 @@ void Network::handleActiveIpPacket(struct sockaddr_in client_address, struct Pac
 {
     std::string active_ip = std::string(packet->active_ip_packet.ip_address, strnlen(packet->active_ip_packet.ip_address, INET_ADDRSTRLEN));
     addActiveIp(active_ip);
+}
+
+void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet)
+{
+    struct DnpDatagramPacket* datagram_packet = &packet->datagram_packet;
+    CREATE_KERNEL_PACKET(kernel_packet, DNP_KERNEL_PACKET_TYPE_RECV_DATAGRAM);
+    struct dnp_kernel_packet_recv_datagram* kernel_packet_recv_datagram = &kernel_packet.recv_datagram_packet;
+    memcpy(kernel_packet_recv_datagram->send_from.address, datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
+    kernel_packet_recv_datagram->send_from.port = datagram_packet->send_from.port;
+    memcpy(kernel_packet_recv_datagram->send_to.address, datagram_packet->send_to.address, sizeof(datagram_packet->send_to.address));
+    kernel_packet_recv_datagram->send_to.port = datagram_packet->send_to.port;
+    this->system->getKernelClient()->sendPacketToKernel(kernel_packet);
 }
