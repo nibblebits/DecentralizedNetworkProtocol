@@ -27,6 +27,10 @@ struct dnp_dnpdatagramsock
     char addr[DNP_ID_SIZE];
 	__u16 port;
 	struct dnp_socket_option options[DNP_MAX_OPTIONS];
+
+	// Queued packets to be read with recvfrom on client side
+	struct list_head packet_queue;
+	struct mutex packet_queue_mutex;
 };
 
 #define dnp_dnpdatagramsock(sk) ((struct dnp_dnpdatagramsock *) sk)
@@ -42,6 +46,12 @@ struct dnp_binded_port
 struct dnp_socket
 {
 	struct socket* sock;
+	struct list_head list;
+};
+
+struct dnp_packet_queue_element
+{
+	struct dnp_kernel_packet* packet;
 	struct list_head list;
 };
 

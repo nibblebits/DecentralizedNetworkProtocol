@@ -39,7 +39,7 @@ int dnp_remove_port(struct list_head* list, struct socket* sock)
 
 int dnp_set_port(struct list_head* list, __u16 port, struct socket* sock)
 {
-    struct dnp_binded_port* binded_port = (struct dnp_binded_port*) kmalloc(sizeof(struct dnp_binded_port), GFP_USER);
+    struct dnp_binded_port* binded_port = (struct dnp_binded_port*) kzalloc(sizeof(struct dnp_binded_port), GFP_KERNEL);
     binded_port->sock = sock;
     binded_port->port = port;
 
