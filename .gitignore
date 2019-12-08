@@ -4,5 +4,6 @@
 *.cmd
 *.mod
 *.dnp
+*.qcow2
 /.vscode/*
 /exe/bin/*
