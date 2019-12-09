@@ -208,9 +208,8 @@ void dnp_kernel_server_up_send_and_wait(struct dnp_kernel_packet* packet)
         goto out;
     }
 
-    char buf[DNP_ID_SIZE+1];
-    buf[DNP_ID_SIZE] = 0x00;
-    memcpy(buf, packet->create_id_packet_res.created_id, sizeof(DNP_ID_SIZE));
+    char buf[DNP_ID_SIZE];
+    memcpy(buf, packet->create_id_packet_res.created_id, DNP_ID_SIZE);
 
     memcpy(&send_and_waits[packet->sem_id].packet, packet, sizeof(struct dnp_kernel_packet));
     up(&send_and_waits[packet->sem_id].sem);
@@ -266,7 +265,7 @@ void dnp_kernel_server_handle_packet(struct nlmsghdr *nlh, struct dnp_kernel_pac
     break;
 
     case DNP_KERNEL_PACKET_TYPE_RECV_DATAGRAM:
-        dnp_kernel_server_handle_recv_datagram_packet(nlh, packet);
+        //dnp_kernel_server_handle_recv_datagram_packet(nlh, packet);
     break;
 
     default:

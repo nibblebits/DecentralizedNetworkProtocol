@@ -6,7 +6,7 @@
 #include "dnpmodshared.h"
 
 #define ENSURE_KERNEL_BINDED if (!dnp_kernel_server_binded_to_pid()) return -EUNATCH;
-#define NEW_DNP_KERNEL_PACKET(name, type) struct dnp_kernel_packet* name = (struct dnp_kernel_packet*) kmalloc(sizeof(struct dnp_kernel_packet), GFP_USER); dnp_kernel_server_new_packet(type, name);
+#define NEW_DNP_KERNEL_PACKET(name, type) struct dnp_kernel_packet* name = (struct dnp_kernel_packet*) kmalloc(sizeof(struct dnp_kernel_packet), GFP_KERNEL); dnp_kernel_server_new_packet(type, name);
 #define FREE_DNP_KERNEL_PACKET(name) kfree(name);
 #define DNP_TOTAL_SEND_AND_WAITS 30
 
