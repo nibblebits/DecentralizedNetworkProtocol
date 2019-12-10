@@ -50,6 +50,8 @@ int main()
         printf("Failed to send packet\n");
         printf("%s\n", strerror(rc));
     }
+
+    while(1) {}
     //    int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &servaddr.sin_family, sizeof(servaddr));
     //  printf("%i\n", rc);
     close(sockfd);

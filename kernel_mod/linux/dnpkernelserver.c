@@ -276,7 +276,7 @@ void dnp_kernel_server_handle_packet(struct nlmsghdr *nlh, struct dnp_kernel_pac
         break;
 
     case DNP_KERNEL_PACKET_TYPE_RECV_DATAGRAM:
-        //dnp_kernel_server_handle_recv_datagram_packet(nlh, packet);
+        dnp_kernel_server_handle_recv_datagram_packet(nlh, packet);
         break;
 
     default:

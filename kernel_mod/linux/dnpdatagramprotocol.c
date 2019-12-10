@@ -33,9 +33,9 @@ static int dnpdatagramsock_cleanup_socket(struct socket *sock)
 	dnp_remove_port(&root_port_list, sock);
 	mutex_unlock(&port_list_mutex);
 
-	//dnp_kernel_server_up_send_and_waits_for_socket(sock->sk);
+	dnp_kernel_server_up_send_and_waits_for_socket(sock->sk);
 
-/*
+
 	// Let's cleanup our packets and dispose of them
 	struct dnp_dnpdatagramsock *datagram_sock = dnp_dnpdatagramsock(sock->sk);
 	struct list_head *packet_queue_list_head = &datagram_sock->packet_queue;
@@ -45,11 +45,11 @@ static int dnpdatagramsock_cleanup_socket(struct socket *sock)
 	list_for_each_entry_safe(ptr, ptr_next, packet_queue_list_head, list)
 	{
 		printk(KERN_INFO "%s %p\n", __FUNCTION__, ptr);
-		//kfree(ptr->packet);
-		//list_del(&ptr->list);
-		//kfree(ptr);
+		kfree(ptr->packet);
+		list_del(&ptr->list);
+		kfree(ptr);
 	}
-	mutex_unlock(&datagram_sock->packet_queue_mutex);*/
+	mutex_unlock(&datagram_sock->packet_queue_mutex);
 
 	return 0;
 }
@@ -61,10 +61,6 @@ static int dnpdatagramsock_release(struct socket *sock)
 	if (!sk)
 		return 0;
 
-	/*mutex_lock(&sock_list_mutex);
-	sk_del_node_init(sk);
-	mutex_unlock(&sock_list_mutex);
-	*/
 	dnpdatagramsock_cleanup_socket(sock);
 
 	sock_orphan(sk);
@@ -150,7 +146,9 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	memcpy(&packet->datagram_packet.buf, iov->iov_base, iov->iov_len);
 	memcpy(packet->datagram_packet.send_from.address, dnp_dnpdatagramsock(sock->sk)->addr, sizeof(packet->datagram_packet.send_from));
 	packet->datagram_packet.send_from.port = dnp_dnpdatagramsock(sock->sk)->port;
-
+	memcpy(packet->datagram_packet.send_to.address, send_to_addr, sizeof(send_to_addr));
+	packet->datagram_packet.send_to.port = dnp_address->port;
+	 
 	err = dnp_kernel_server_send_and_wait(packet, res_packet, sock->sk);
 	if (err < 0)
 	{
@@ -312,7 +310,12 @@ static int dnpdatagramsock_create(struct net *net, struct socket *sock,
 
 	// Let's add the socket to the list
 	mutex_lock(&sock_list_mutex);
-	dnp_add_sock(&sock_list, sock);
+	if(dnp_add_sock(&sock_list, sock) < 0)
+	{
+		printk(KERN_ERR "Failed to add socket to list\n");
+		goto out;
+	}
+out:
 	mutex_unlock(&sock_list_mutex);
 	return 0;
 }
@@ -321,18 +324,21 @@ static int dnpdatagramsock_recv(struct dnp_kernel_packet *packet)
 {
 	printk(KERN_INFO "%s packet processing\n", __FUNCTION__);
 	
-/*	struct dnp_socket *sock = NULL;
+	struct dnp_socket *dnp_sock = NULL;
 	mutex_lock(&sock_list_mutex);
-	sock = dnp_get_socket_by_address(&sock_list, &packet->datagram_packet.send_to);
+	dnp_sock = dnp_get_socket_by_address(&sock_list, &packet->recv_datagram_packet.send_to);
 	mutex_unlock(&sock_list_mutex);
-	if (!sock)
+	if (!dnp_sock)
 	{
-		printk(KERN_ERR "%s socket could not be located, it must not be binded\n", __FUNCTION__);
+		char id[DNP_ID_SIZE+1];
+		id[DNP_ID_SIZE] = 0;
+		memcpy(id, &packet->recv_datagram_packet.send_to.address, DNP_ID_SIZE);
+		printk(KERN_ERR "%s socket could not be located, it must not be binded address=%s\n", __FUNCTION__, id);
 		return -EIO;
 	}
 
 	// Let's push the packet to the socket data
-	dnpdatagramsock_push_packet(sock->sock, packet);*/
+	dnpdatagramsock_push_packet(dnp_sock->sock, packet);
 
 	return 0;
 }
