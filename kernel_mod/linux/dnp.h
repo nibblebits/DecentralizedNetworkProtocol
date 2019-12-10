@@ -77,11 +77,12 @@ void dnp_kernel_server_exit(void);
 bool dnp_kernel_server_binded_to_pid(void);
 int dnp_get_protocol(int proto, const struct dnp_protocol** protocol);
 
-int dnp_kernel_server_create_address(char* gen_id_buf);
+int dnp_kernel_server_create_address(char* gen_id_buf, struct sock* sk);
+void dnp_kernel_server_up_send_and_waits_for_socket(struct sock* sk);
 int dnp_kernel_server_send_packet_to_pid(struct dnp_kernel_packet *packet, __u32 _pid);
 int dnp_kernel_server_send_packet(struct dnp_kernel_packet *packet);
 void dnp_kernel_server_new_packet(DNP_KERNEL_PACKET_TYPE type, struct dnp_kernel_packet* packet);
-int dnp_kernel_server_send_and_wait(struct dnp_kernel_packet* packet, struct dnp_kernel_packet* res_packet);
+int dnp_kernel_server_send_and_wait(struct dnp_kernel_packet* packet, struct dnp_kernel_packet* res_packet, struct sock* sk);
 
 int dnp_set_port(struct list_head* list, __u16 port, struct socket* sock);
 bool dnp_is_port_set(struct list_head* list, __u16 port);

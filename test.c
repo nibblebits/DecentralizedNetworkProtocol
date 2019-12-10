@@ -27,6 +27,7 @@ int main()
         perror("socket creation failed");
         exit(EXIT_FAILURE);
     }
+    
     memset(&servaddr, 0, sizeof(servaddr));
 
     char addr[DNP_ID_SIZE];
@@ -42,7 +43,7 @@ int main()
         printf("Failed to bind! Size=: %i\n", (int)sizeof(servaddr));
         printf("%s\n", strerror(res));
     }
-
+    
     int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &servaddr, sizeof(servaddr));
     if (rc < 0)
     {

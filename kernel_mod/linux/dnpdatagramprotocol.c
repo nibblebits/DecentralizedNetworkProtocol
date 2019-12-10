@@ -26,13 +26,16 @@ static int dnpdatagramsock_push_packet(struct socket *sock, struct dnp_kernel_pa
 
 static int dnpdatagramsock_cleanup_socket(struct socket *sock)
 {
-	//mutex_lock(&sock_list_mutex);
-	//dnp_remove_socket(&sock_list, sock);
-	//mutex_unlock(&sock_list_mutex);
-	/*mutex_lock(&port_list_mutex);
+	mutex_lock(&sock_list_mutex);
+	dnp_remove_socket(&sock_list, sock);
+	mutex_unlock(&sock_list_mutex);
+	mutex_lock(&port_list_mutex);
 	dnp_remove_port(&root_port_list, sock);
 	mutex_unlock(&port_list_mutex);
 
+	dnp_kernel_server_up_send_and_waits_for_socket(sock->sk);
+
+/*
 	// Let's cleanup our packets and dispose of them
 	struct dnp_dnpdatagramsock *datagram_sock = dnp_dnpdatagramsock(sock->sk);
 	struct list_head *packet_queue_list_head = &datagram_sock->packet_queue;
@@ -59,8 +62,11 @@ static int dnpdatagramsock_release(struct socket *sock)
 		return 0;
 
 	dnpdatagramsock_cleanup_socket(sock);
+
 	sock_orphan(sk);
 	sock_put(sk);
+	
+	sock->sk = NULL;
 
 	return 0;
 }
@@ -106,10 +112,9 @@ int dnpdatagramsock_setsockopt(struct socket *sock, int level, int optname,
 int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	ENSURE_KERNEL_BINDED
-
-	lock_sock(sock->sk);
 	int err = 0;
 
+	lock_sock(sock->sk);
 	// Create our packets ready for later
 	NEW_DNP_KERNEL_PACKET(res_packet, -1)
 	NEW_DNP_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM)
@@ -142,7 +147,7 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	memcpy(packet->datagram_packet.send_from.address, dnp_dnpdatagramsock(sock)->addr, sizeof(packet->datagram_packet.send_from));
 	packet->datagram_packet.send_from.port = dnp_dnpdatagramsock(sock)->port;
 
-	err = dnp_kernel_server_send_and_wait(packet, res_packet);
+	err = dnp_kernel_server_send_and_wait(packet, res_packet, sock->sk);
 	if (err < 0)
 	{
 		printk(KERN_ERR "%s failed to send packet to kernel server has it crashed? err=%i\n", __FUNCTION__, err);
@@ -182,6 +187,7 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 {
 	// Ensures the kernel is binded to the user host application that is running our DNP server (unrelated to this call)
 	ENSURE_KERNEL_BINDED
+	int err = 0;
 
 	if (len != sizeof(struct dnp_address))
 	{
@@ -196,7 +202,6 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 		return -EINVAL;
 	}
 
-	int err = 0;
 	char addr[DNP_ID_SIZE];
 	if (copy_from_user(addr, dnp_address->addr, sizeof(addr)) != 0)
 	{
@@ -208,7 +213,7 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	{
 		// User wants a new DNP address so let's go and instruct the server to make us one
 		char gen_id[DNP_ID_SIZE];
-		err = dnp_kernel_server_create_address(gen_id);
+		err = dnp_kernel_server_create_address(gen_id, sock->sk);
 		if (err < 0)
 		{
 			printk(KERN_ERR "%s failed to create DNP address, err=%i\n", __FUNCTION__, err);
@@ -225,9 +230,9 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	}
 
 	__u16 port = dnp_address->port;
-//	mutex_lock(&port_list_mutex);
-//	err = dnp_set_port(&root_port_list, port, sock);
-//	mutex_unlock(&port_list_mutex);
+	mutex_lock(&port_list_mutex);
+	err = dnp_set_port(&root_port_list, port, sock);
+	mutex_unlock(&port_list_mutex);
 	if (err < 0)
 	{
 		printk(KERN_ERR "%s Failed to set port err=%i\n", __FUNCTION__, err);
@@ -301,16 +306,17 @@ static int dnpdatagramsock_create(struct net *net, struct socket *sock,
 	dnpdatagramsock_init(dnp_dnpdatagramsock(sk));
 
 	// Let's add the socket to the list
-	//mutex_lock(&sock_list_mutex);
-	//dnp_add_sock(&sock_list, sock);
-	//mutex_unlock(&sock_list_mutex);
+	mutex_lock(&sock_list_mutex);
+	dnp_add_sock(&sock_list, sock);
+	mutex_unlock(&sock_list_mutex);
 	return 0;
 }
 
 static int dnpdatagramsock_recv(struct dnp_kernel_packet *packet)
 {
 	printk(KERN_INFO "%s packet processing\n", __FUNCTION__);
-	/*struct dnp_socket *sock = NULL;
+	
+/*	struct dnp_socket *sock = NULL;
 	mutex_lock(&sock_list_mutex);
 	sock = dnp_get_socket_by_address(&sock_list, &packet->datagram_packet.send_to);
 	mutex_unlock(&sock_list_mutex);

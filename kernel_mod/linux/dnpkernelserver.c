@@ -26,6 +26,7 @@ struct send_and_wait
     struct semaphore sem;
     struct dnp_kernel_packet packet;
     bool taken;
+    struct sock *sk;
 };
 
 static struct send_and_wait send_and_waits[DNP_TOTAL_SEND_AND_WAITS];
@@ -57,15 +58,14 @@ int dnp_kernel_server_send_packet(struct dnp_kernel_packet *packet)
     return dnp_kernel_server_send_packet_to_pid(packet, pid);
 }
 
-
-int dnp_kernel_server_create_address(char* gen_id_buf)
+int dnp_kernel_server_create_address(char *gen_id_buf, struct sock *sk)
 {
     ENSURE_KERNEL_BINDED
     int res = 0;
-    
+
     NEW_DNP_KERNEL_PACKET(res_packet, -1)
     NEW_DNP_KERNEL_PACKET(packet, DNP_KERNEL_PACKET_TYPE_CREATE_ID)
-    res = dnp_kernel_server_send_and_wait(packet, res_packet);
+    res = dnp_kernel_server_send_and_wait(packet, res_packet, sk);
     if (res < 0)
     {
         printk(KERN_ERR "%s failed to send packet to kernel server has it crashed?\n", __FUNCTION__);
@@ -123,8 +123,7 @@ void dnp_kernel_server_handle_hello_packet(struct nlmsghdr *nlh, struct dnp_kern
     FREE_DNP_KERNEL_PACKET(res_packet)
 }
 
-
-DNP_SEMAPHORE_ID dnp_kernel_server_create_send_and_wait(void)
+DNP_SEMAPHORE_ID dnp_kernel_server_create_send_and_wait(struct sock *sk)
 {
     DNP_SEMAPHORE_ID res = -ENOMEM;
     // Create a send and wait
@@ -135,6 +134,7 @@ DNP_SEMAPHORE_ID dnp_kernel_server_create_send_and_wait(void)
         if (!saw->taken)
         {
             saw->taken = true;
+            saw->sk = sk;
             res = i;
             goto out;
         }
@@ -144,7 +144,7 @@ out:
     return res;
 }
 
-void dnp_kernel_server_send_and_wait_copy_free(struct dnp_kernel_packet* dst, int sem_id)
+void dnp_kernel_server_send_and_wait_copy_free(struct dnp_kernel_packet *dst, int sem_id)
 {
     mutex_lock(&send_and_wait_lock);
     memcpy(dst, &send_and_waits[sem_id].packet, sizeof(send_and_waits[sem_id].packet));
@@ -152,14 +152,30 @@ void dnp_kernel_server_send_and_wait_copy_free(struct dnp_kernel_packet* dst, in
     mutex_unlock(&send_and_wait_lock);
 }
 
-int dnp_kernel_server_send_and_wait(struct dnp_kernel_packet *packet, struct dnp_kernel_packet* res_packet)
+void dnp_kernel_server_up_send_and_waits_for_socket(struct sock *sk)
+{
+    mutex_lock(&send_and_wait_lock);
+    for (int i = 0; i < DNP_TOTAL_SEND_AND_WAITS; i++)
+    {
+        struct send_and_wait* saw = (struct send_and_wait*) &send_and_waits[i];
+        if (saw->taken && saw->sk == sk)
+        {
+            // Let's up the semaphore
+            up(&saw->sem);
+            saw->taken = false;
+        }
+    }
+    mutex_unlock(&send_and_wait_lock);
+}
+
+int dnp_kernel_server_send_and_wait(struct dnp_kernel_packet *packet, struct dnp_kernel_packet *res_packet, struct sock *sk)
 {
     memset(res_packet, 0, sizeof(struct dnp_kernel_packet));
     res_packet->type = -1;
 
     int res = 0;
     // Create a send and wait for us
-    DNP_SEMAPHORE_ID sem_id = dnp_kernel_server_create_send_and_wait();
+    DNP_SEMAPHORE_ID sem_id = dnp_kernel_server_create_send_and_wait(sk);
     if (sem_id < 0)
     {
         res = sem_id;
@@ -168,7 +184,7 @@ int dnp_kernel_server_send_and_wait(struct dnp_kernel_packet *packet, struct dnp
 
     // Attach the semaphore id so that when we get a packet back we know :)
     packet->sem_id = sem_id;
-    
+
     // Send the packet
     res = dnp_kernel_server_send_packet(packet);
     if (res < 0)
@@ -184,7 +200,6 @@ int dnp_kernel_server_send_and_wait(struct dnp_kernel_packet *packet, struct dnp
         goto out;
     }
 
-
     // Copy packet recieved to result and mark send and wait free
     dnp_kernel_server_send_and_wait_copy_free(res_packet, sem_id);
 
@@ -192,7 +207,7 @@ out:
     return res;
 }
 
-void dnp_kernel_server_up_send_and_wait(struct dnp_kernel_packet* packet)
+void dnp_kernel_server_up_send_and_wait(struct dnp_kernel_packet *packet)
 {
     mutex_lock(&send_and_wait_lock);
     if (packet->sem_id >= DNP_TOTAL_SEND_AND_WAITS)
@@ -208,9 +223,6 @@ void dnp_kernel_server_up_send_and_wait(struct dnp_kernel_packet* packet)
         goto out;
     }
 
-    char buf[DNP_ID_SIZE];
-    memcpy(buf, packet->create_id_packet_res.created_id, DNP_ID_SIZE);
-
     memcpy(&send_and_waits[packet->sem_id].packet, packet, sizeof(struct dnp_kernel_packet));
     up(&send_and_waits[packet->sem_id].sem);
 
@@ -218,10 +230,10 @@ out:
     mutex_unlock(&send_and_wait_lock);
 }
 
-void dnp_kernel_server_handle_recv_datagram_packet(struct nlmsghdr* nlh, struct dnp_kernel_packet* packet)
+void dnp_kernel_server_handle_recv_datagram_packet(struct nlmsghdr *nlh, struct dnp_kernel_packet *packet)
 {
     printk(KERN_INFO "%s Handling recieved datagram packet\n", __FUNCTION__);
-    const struct dnp_protocol* protocol = NULL;
+    const struct dnp_protocol *protocol = NULL;
     int res = dnp_get_protocol(DNP_DATAGRAM_PROTOCOL, &protocol);
     if (res < 0)
     {
@@ -240,7 +252,6 @@ void dnp_kernel_server_handle_recv_datagram_packet(struct nlmsghdr* nlh, struct 
     {
         printk(KERN_ERR "%s Bad response %i\n", __FUNCTION__, res);
     }
-
 }
 
 void dnp_kernel_server_handle_packet(struct nlmsghdr *nlh, struct dnp_kernel_packet *packet)
@@ -257,24 +268,24 @@ void dnp_kernel_server_handle_packet(struct nlmsghdr *nlh, struct dnp_kernel_pac
     break;
 
     case DNP_KERNEL_PACKET_TYPE_CREATE_ID_RESPONSE:
-    // Do nothing we handle this else where
-    break;
+        // Do nothing we handle this else where
+        break;
 
     case DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM_RESPONSE:
-    // Do nothing we handle this else where
-    break;
+        // Do nothing we handle this else where
+        break;
 
     case DNP_KERNEL_PACKET_TYPE_RECV_DATAGRAM:
         //dnp_kernel_server_handle_recv_datagram_packet(nlh, packet);
-    break;
+        break;
 
     default:
         printk(KERN_INFO "%s unrecognized kernel packet: %i\n", __FUNCTION__, packet->type);
     }
 
     // Semaphore is present in packet, we must up it
-    if(packet->sem_id != -1)
-    {   
+    if (packet->sem_id != -1)
+    {
         dnp_kernel_server_up_send_and_wait(packet);
     }
 }
