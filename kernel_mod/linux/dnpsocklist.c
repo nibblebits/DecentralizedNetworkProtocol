@@ -58,7 +58,7 @@ int dnp_add_sock(struct list_head *list, struct socket *sock)
         return -EIO;
     }
 
-    struct dnp_socket *dnp_socket = (struct dnp_socket *)kzalloc(sizeof(struct dnp_socket), GFP_KERNEL);
+    struct dnp_socket *dnp_socket = (struct dnp_socket *)kzalloc(sizeof(struct dnp_socket), GFP_USER);
     dnp_socket->sock = sock;
 
     list_add(&dnp_socket->list, list);

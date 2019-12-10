@@ -14,9 +14,9 @@ DEFINE_MUTEX(sock_list_mutex);
 static int dnpdatagramsock_push_packet(struct socket *sock, struct dnp_kernel_packet *packet)
 {
 	struct dnp_dnpdatagramsock *datagram_sock = dnp_dnpdatagramsock(sock->sk);
-	struct dnp_packet_queue_element *element = (struct dnp_packet_queue_element *)kzalloc(sizeof(struct dnp_socket), GFP_KERNEL);
+	struct dnp_packet_queue_element *element = (struct dnp_packet_queue_element *)kzalloc(sizeof(struct dnp_socket), GFP_USER);
 	// Packet must be copied as otherwise data will be lost
-	element->packet = kzalloc(sizeof(struct dnp_kernel_packet), GFP_KERNEL);
+	element->packet = kzalloc(sizeof(struct dnp_kernel_packet), GFP_USER);
 	memcpy(element->packet, packet, sizeof(struct dnp_kernel_packet));
 	mutex_lock(&datagram_sock->packet_queue_mutex);
 	list_add(&element->list, &datagram_sock->packet_queue);
@@ -33,7 +33,7 @@ static int dnpdatagramsock_cleanup_socket(struct socket *sock)
 	dnp_remove_port(&root_port_list, sock);
 	mutex_unlock(&port_list_mutex);
 
-	dnp_kernel_server_up_send_and_waits_for_socket(sock->sk);
+	//dnp_kernel_server_up_send_and_waits_for_socket(sock->sk);
 
 /*
 	// Let's cleanup our packets and dispose of them
@@ -61,6 +61,10 @@ static int dnpdatagramsock_release(struct socket *sock)
 	if (!sk)
 		return 0;
 
+	/*mutex_lock(&sock_list_mutex);
+	sk_del_node_init(sk);
+	mutex_unlock(&sock_list_mutex);
+	*/
 	dnpdatagramsock_cleanup_socket(sock);
 
 	sock_orphan(sk);
@@ -144,8 +148,8 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 	struct iovec *iov = (struct iovec *)msg->msg_iter.iov;
 	memcpy(&packet->datagram_packet.buf, iov->iov_base, iov->iov_len);
-	memcpy(packet->datagram_packet.send_from.address, dnp_dnpdatagramsock(sock)->addr, sizeof(packet->datagram_packet.send_from));
-	packet->datagram_packet.send_from.port = dnp_dnpdatagramsock(sock)->port;
+	memcpy(packet->datagram_packet.send_from.address, dnp_dnpdatagramsock(sock->sk)->addr, sizeof(packet->datagram_packet.send_from));
+	packet->datagram_packet.send_from.port = dnp_dnpdatagramsock(sock->sk)->port;
 
 	err = dnp_kernel_server_send_and_wait(packet, res_packet, sock->sk);
 	if (err < 0)
@@ -227,6 +231,7 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 			goto out;
 		}
 		memcpy(addr, gen_id, sizeof(gen_id));
+		
 	}
 
 	__u16 port = dnp_address->port;
@@ -240,8 +245,8 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	}
 
 	// Great let's now set the binded address in this socket
-	memcpy(dnp_dnpdatagramsock(sock)->addr, &addr, sizeof(addr));
-	dnp_dnpdatagramsock(sock)->port = dnp_address->port;
+	memcpy(dnp_dnpdatagramsock(sock->sk)->addr, &addr, sizeof(addr));
+	dnp_dnpdatagramsock(sock->sk)->port = dnp_address->port;
 out:
 	return err;
 }
