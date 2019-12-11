@@ -20,6 +20,7 @@ int main()
     
 
     struct dnp_address servaddr;
+    struct dnp_address cliaddr;
 
     // Creating socket file descriptor
     if ((sockfd = socket(DNP_FAMILY, SOCK_RAW, DNP_DATAGRAM_PROTOCOL)) < 0)
@@ -29,14 +30,15 @@ int main()
     }
     
     memset(&servaddr, 0, sizeof(servaddr));
+    memset(&cliaddr, 0, sizeof(cliaddr));
 
-    char addr[DNP_ID_SIZE];
-    memcpy(addr, "1491f2c8c1c3fb3286869b47bd3d6b68", sizeof(addr));
-
+    char addr[DNP_ID_SIZE+1];
+    memcpy(addr, "42614bd2ef87371f282b8e500f9c0428", sizeof(addr));
+    addr[DNP_ID_SIZE] = 0;
     // Filling server information
     servaddr.port = htons(PORT);
     servaddr.addr = addr;
-    servaddr.flags = DNP_ADDRESS_FLAG_GENERATE_ADDRESS;
+    //servaddr.flags = DNP_ADDRESS_FLAG_GENERATE_ADDRESS;
     int res = bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
     if (res < 0)
     {
@@ -44,14 +46,19 @@ int main()
         printf("%s\n", strerror(res));
     }
     
-   int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &servaddr, sizeof(servaddr));
+    cliaddr.port = htons(PORT);
+    cliaddr.addr = addr;
+    addr[0] = 'E';
+
+    printf("%s\n", addr);
+
+    int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &cliaddr, sizeof(cliaddr));
     if (rc < 0)
     {
         printf("Failed to send packet\n");
         printf("%s\n", strerror(rc));
     }
 
-    while(1) {}
     //    int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &servaddr.sin_family, sizeof(servaddr));
     //  printf("%i\n", rc);
     close(sockfd);
