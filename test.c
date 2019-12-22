@@ -48,16 +48,28 @@ int main()
     
     cliaddr.port = htons(PORT);
     cliaddr.addr = addr;
-    addr[0] = 'E';
 
     printf("%s\n", addr);
 
-    int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &cliaddr, sizeof(cliaddr));
+    int rc = sendto(sockfd, "Hello worlds", sizeof("Hello worlds"), 0, (struct sockaddr*) &cliaddr, sizeof(cliaddr));
     if (rc < 0)
     {
         printf("Failed to send packet\n");
         printf("%s\n", strerror(rc));
     }
+
+    sleep(2);
+    char buf[1024];
+    socklen_t len;
+    memset(addr, 0, sizeof(addr));
+    rc = recvfrom(sockfd, &buf, sizeof(buf), 0, (struct sockaddr*) &cliaddr, &len);
+    if (rc < 0)
+    {
+        printf("Recv failed\n");
+        printf("%s\n", strerror(rc));
+    }
+
+    printf("%s\n", buf);
 
     //    int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &servaddr.sin_family, sizeof(servaddr));
     //  printf("%i\n", rc);

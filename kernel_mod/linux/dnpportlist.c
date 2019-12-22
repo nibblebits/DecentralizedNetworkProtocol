@@ -33,6 +33,7 @@ int dnp_remove_port(struct list_head* list, struct socket* sock)
         return -EIO;
 
     list_del(&binded_port->list);
+    kfree(binded_port);
     return 0;
 }
 

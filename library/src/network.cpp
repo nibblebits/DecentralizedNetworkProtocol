@@ -337,5 +337,6 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
     kernel_packet_recv_datagram->send_from.port = datagram_packet->send_from.port;
     memcpy(kernel_packet_recv_datagram->send_to.address, datagram_packet->send_to.address, sizeof(datagram_packet->send_to.address));
     kernel_packet_recv_datagram->send_to.port = datagram_packet->send_to.port;
+    memcpy(kernel_packet_recv_datagram->buf, datagram_packet->buf, sizeof(datagram_packet->buf));
     this->system->getKernelClient()->sendPacketToKernel(kernel_packet);
 }
