@@ -174,6 +174,7 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		goto out;
 	}
 
+	
 	printk("%s send_to_addr start=%x\n", __FUNCTION__, send_to_addr[0]);
 
 	struct iovec *iov = (struct iovec *)msg->msg_iter.iov;
@@ -183,6 +184,7 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	memcpy(packet->datagram_packet.send_to.address, send_to_addr, sizeof(packet->datagram_packet.send_to.address));
 	packet->datagram_packet.send_to.port = dnp_address->port;
 
+	printk(KERN_INFO " port=%i\n", dnp_address->port);
 	err = dnp_kernel_server_send_and_wait(packet, res_packet, sock->sk);
 	if (err < 0)
 	{
@@ -226,25 +228,27 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		goto out;
 	}
 
-	struct dnp_address *dnp_out_address = (struct dnp_address *)msg->msg_name;
+
 	struct dnp_kernel_packet_recv_datagram *datagram = (struct dnp_kernel_packet_recv_datagram *)&p->recv_datagram_packet;
-	
-	/*
-	if(copy_to_user(dnp_out_address->addr, &datagram->send_from.address, sizeof(datagram->send_from.address) != 0))
+	struct dnp_address_in *dnp_out_address = (struct dnp_address_in *)msg->msg_name;
+
+
+	if (len > sizeof(datagram->buf))
 	{
-		printk("%s failed to copy send from address to user space addr=%p\n", __FUNCTION__, dnp_out_address->addr);
-		res = -EIO;
+		res = -EMSGSIZE;
 		goto out;
 	}
 
+	memcpy(dnp_out_address->addr, &datagram->send_from.address, sizeof(datagram->send_from.address));
 	dnp_out_address->port = datagram->send_from.port;
-*/
+	msg->msg_namelen = sizeof(struct dnp_address_in);
+
 	struct iovec *iov = (struct iovec *)msg->msg_iter.iov;
-	memcpy(iov->iov_base, &datagram->buf, sizeof(datagram->buf));
+	memcpy(iov->iov_base, &datagram->buf, len);
 	msg->msg_iter.count = 1;
 
 	// Length is always size of buffer, but needs to be changed so its the length the user actually intended to send
-	iov->iov_len = sizeof(datagram->buf);
+	iov->iov_len = len;
 
 out:
 	kfree(p);

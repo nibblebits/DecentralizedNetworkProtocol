@@ -132,7 +132,14 @@ enum
 
 struct dnp_address
 {
-    char *addr;
+    char* addr;
+    unsigned short port;
+    DNP_ADDRESS_FLAGS flags;
+};
+
+struct dnp_address_in
+{
+    char addr[DNP_ID_SIZE];
     unsigned short port;
     DNP_ADDRESS_FLAGS flags;
 };

@@ -35,9 +35,15 @@ int main()
     char addr[DNP_ID_SIZE+1];
     memcpy(addr, "42614bd2ef87371f282b8e500f9c0428", sizeof(addr));
     addr[DNP_ID_SIZE] = 0;
+
     // Filling server information
     servaddr.port = htons(PORT);
     servaddr.addr = addr;
+    memcpy(servaddr.addr, "42614bd2ef87371f282b8e500f9c0428", sizeof(servaddr.addr));
+
+    cliaddr.port = htons(PORT);
+    cliaddr.addr = addr;
+
     //servaddr.flags = DNP_ADDRESS_FLAG_GENERATE_ADDRESS;
     int res = bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
     if (res < 0)
@@ -47,7 +53,6 @@ int main()
     }
     
     cliaddr.port = htons(PORT);
-    cliaddr.addr = addr;
 
     printf("%s\n", addr);
 
@@ -58,19 +63,27 @@ int main()
         printf("%s\n", strerror(rc));
     }
 
+printf("port %i\n", cliaddr.port);
     sleep(2);
+
+    struct dnp_address_in in_addr;
+    memset(&in_addr, 0, sizeof(in_addr));
+    
     char buf[1024];
-    socklen_t len;
-    memset(addr, 0, sizeof(addr));
-    rc = recvfrom(sockfd, &buf, sizeof(buf), 0, (struct sockaddr*) &cliaddr, &len);
+    socklen_t len = sizeof(in_addr);
+    cliaddr.port = 20;
+    rc = recvfrom(sockfd, &buf, sizeof(buf), 0, (struct sockaddr*) &in_addr, &len);
     if (rc < 0)
     {
         printf("Recv failed\n");
         printf("%s\n", strerror(rc));
     }
 
+    printf("%p\n", cliaddr);
     printf("%s\n", buf);
-
+    printf("%i\n", cliaddr.port);
+    printf("%s\n", in_addr.addr);
+    
     //    int rc = sendto(sockfd, "Hello world", sizeof("Hello world"), 0, (struct sockaddr*) &servaddr.sin_family, sizeof(servaddr));
     //  printf("%i\n", rc);
     close(sockfd);
