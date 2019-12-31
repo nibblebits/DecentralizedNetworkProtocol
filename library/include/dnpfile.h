@@ -84,6 +84,9 @@ public:
     bool hasDnpAddress(std::string address);
     void addDnpAddress(std::string address, std::string public_key, std::string private_key);
 
+    bool readPrivateKey(struct dnp_address* dnp_address, std::string& out);
+    bool readPublicKey(struct dnp_address* dnp_address, std::string& out);
+
     bool getFileHeader(struct file_header *header);
     bool doesIpExist(std::string ip);
     void addIp(std::string ip);
@@ -91,6 +94,8 @@ public:
    
 
 private:
+    bool _readPrivateKey(struct dnp_address* dnp_address, std::string& out);
+    bool _readPublicKey(struct dnp_address* dnp_address, std::string& out);
     bool _getNextIp(std::string &ip_str, unsigned long* current_index, unsigned long ip_block_pos=-1);
     bool _getDnpAddress(std::string address, struct dnp_address* dnp_address);
     bool _hasDnpAddress(std::string address);

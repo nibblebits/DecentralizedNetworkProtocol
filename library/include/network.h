@@ -72,12 +72,21 @@ struct DnpAddress
     unsigned short port;
 };
 
+struct DnpBufferData
+{
+    char buf[DNP_MAX_DATAGRAM_PACKET_SIZE];
+    // Once decrypted contains original MD5 hash of buf or was tampered with
+    char encrypted_hash[MAX_RSA_ENCRYPTION_OUTPUT_SIZE];
+
+};
+
 struct DnpDatagramPacket
 {
     struct DnpAddress send_from;
     struct DnpAddress send_to;
-    // Data buffer containing the data to send
-    char buf[DNP_MAX_DATAGRAM_PACKET_SIZE];
+    struct DnpBufferData data;
+    char sender_public_key[MAX_PUBLIC_KEY_SIZE];
+
 };
 
 struct Packet

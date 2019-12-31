@@ -331,12 +331,39 @@ void Network::handleActiveIpPacket(struct sockaddr_in client_address, struct Pac
 void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
     struct DnpDatagramPacket* datagram_packet = &packet->datagram_packet;
+    // Let's ensure this packet has not been tampered with
+    std::string public_key = std::string(datagram_packet->sender_public_key, sizeof(datagram_packet->sender_public_key));
+    std::string public_key_hashed = md5_hex(public_key);
+    std::string sender_address = std::string(datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
+    if (sender_address != public_key_hashed)
+    {
+        std::cout << "Sender is a liar" << std::endl;
+        return;
+    }
+    
+    std::string decrypted_data_hash = "";
+    try
+    {
+        Rsa::decrypt_public(public_key, datagram_packet->data.encrypted_hash, decrypted_data_hash);
+    }
+    catch(...)
+    {
+        std::cout << "Failed to decrypt hash with public key, this sender is illegal" << std::endl;
+        return;
+    }
+
+    if (md5_hex(std::string(datagram_packet->data.buf, sizeof(datagram_packet->data.buf))) != decrypted_data_hash)
+    {
+        std::cout << "Data was tampered with!" << std::endl;
+        return;
+    }
+    
     CREATE_KERNEL_PACKET(kernel_packet, DNP_KERNEL_PACKET_TYPE_RECV_DATAGRAM);
     struct dnp_kernel_packet_recv_datagram* kernel_packet_recv_datagram = &kernel_packet.recv_datagram_packet;
     memcpy(kernel_packet_recv_datagram->send_from.address, datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
     kernel_packet_recv_datagram->send_from.port = datagram_packet->send_from.port;
     memcpy(kernel_packet_recv_datagram->send_to.address, datagram_packet->send_to.address, sizeof(datagram_packet->send_to.address));
     kernel_packet_recv_datagram->send_to.port = datagram_packet->send_to.port;
-    memcpy(kernel_packet_recv_datagram->buf, datagram_packet->buf, sizeof(datagram_packet->buf));
+    memcpy(kernel_packet_recv_datagram->buf, datagram_packet->data.buf, sizeof(datagram_packet->data.buf));
     this->system->getKernelClient()->sendPacketToKernel(kernel_packet);
 }

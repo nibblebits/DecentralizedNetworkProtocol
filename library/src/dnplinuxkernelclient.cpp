@@ -3,6 +3,7 @@
 #include "dnpexception.h"
 #include "system.h"
 #include "crypto/rsa.h"
+#include "misc.h"
 #include <memory.h>
 #include <unistd.h>
 #include <iostream>
@@ -186,7 +187,7 @@ void DnpLinuxKernelClient::initNetworkDatagramPacketFromKernelPacket(struct Pack
     net_packet.datagram_packet.send_from.port = kern_packet.datagram_packet.send_from.port;
     memcpy(net_packet.datagram_packet.send_to.address, kern_packet.datagram_packet.send_to.address, sizeof(net_packet.datagram_packet.send_to.address));
     net_packet.datagram_packet.send_to.port = kern_packet.datagram_packet.send_to.port;
-    memcpy(net_packet.datagram_packet.buf, kern_packet.datagram_packet.buf, sizeof(net_packet.datagram_packet.buf));
+    memcpy(net_packet.datagram_packet.data.buf, kern_packet.datagram_packet.buf, sizeof(net_packet.datagram_packet.data.buf));
 }
 
 void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_packet &res_packet, struct dnp_kernel_packet &packet)
@@ -200,15 +201,45 @@ void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_pac
     memcpy(buf, packet.datagram_packet.buf, DNP_ID_SIZE);
 
     DnpFile *dnp_file = this->system->getDnpFile();
-    if (!dnp_file->hasDnpAddress(std::string(packet.datagram_packet.send_from.address, DNP_ID_SIZE)))
+    struct dnp_address dnp_address;
+    if (!dnp_file->getDnpAddress(std::string(packet.datagram_packet.send_from.address, DNP_ID_SIZE), &dnp_address))
     {
         res_packet.datagram_res_packet.res = DNP_KERNEL_SERVER_DATAGRAM_FAILED_ILLEGAL_ADDRESS;
         return;
     }
 
+    std::string private_key = "";
+    if (dnp_file->readPrivateKey(&dnp_address, private_key))
+    {
+        std::cout << "Priv: " << private_key << std::endl;
+    }
+
+     std::string public_key = "";
+    if (dnp_file->readPublicKey(&dnp_address, public_key))
+    {
+        std::cout << "pub: " << public_key << std::endl;
+        std::cout << "size: " << public_key.size() << std::endl;
+    }
+
+
+    std::string data_hash = md5_hex(std::string(buf, sizeof(buf)));
+    std::string encrypted_data_hash = "";
+    try
+    {
+        Rsa::encrypt_private(private_key, data_hash, encrypted_data_hash);    
+    }
+    catch(...)
+    {
+        throw DnpException(DNP_EXCEPTION_KERNEL_ENCRYPT_FAILED, "Failed to encrypt data hash using private key");
+    }
+
+
+
     // send the packet to the decentralized network
     struct Packet net_packet;
     initNetworkDatagramPacketFromKernelPacket(net_packet, packet);
+    memcpy(net_packet.datagram_packet.data.encrypted_hash, encrypted_data_hash.c_str(), encrypted_data_hash.size());
+    memcpy(net_packet.datagram_packet.sender_public_key, public_key.c_str(), public_key.size());
     this->system->getNetwork()->broadcast(&net_packet);
 }
 

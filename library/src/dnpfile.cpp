@@ -433,6 +433,40 @@ void DnpFile::addDnpAddress(std::string address, std::string public_key, std::st
     this->_addDnpAddress(address, public_key, private_key);
 }
 
+bool DnpFile::_readPrivateKey(struct dnp_address *dnp_address, std::string &out)
+{
+    if (dnp_address->private_key_pos == 0 || dnp_address->private_key_size == 0)
+        return false;
+
+    char private_key_buf[dnp_address->private_key_size];
+    this->seek_and_read(dnp_address->private_key_pos, private_key_buf, dnp_address->private_key_size);
+    out = std::string(private_key_buf, dnp_address->private_key_size);
+    return true;
+}
+
+bool DnpFile::_readPublicKey(struct dnp_address *dnp_address, std::string &out)
+{
+    if (dnp_address->public_key_pos == 0 || dnp_address->public_key_size == 0)
+        return false;
+
+    char public_key_buf[dnp_address->public_key_size];
+    this->seek_and_read(dnp_address->public_key_pos, public_key_buf, dnp_address->public_key_size);
+    out = std::string(public_key_buf, dnp_address->public_key_size);
+    return true;
+}
+
+bool DnpFile::readPrivateKey(struct dnp_address *dnp_address, std::string &out)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    return this->_readPrivateKey(dnp_address, out);
+}
+
+bool DnpFile::readPublicKey(struct dnp_address *dnp_address, std::string &out)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    return this->_readPublicKey(dnp_address, out);
+}
+
 void DnpFile::addIp(std::string ip)
 {
     std::lock_guard<std::mutex> lock(this->mutex);
@@ -473,7 +507,7 @@ unsigned long DnpFile::getCurrentIpBlock()
     return this->loaded_file_header.current_ip_block_position;
 }
 
-bool DnpFile::_getNextIp(std::string &ip_str, unsigned long* current_index, unsigned long ip_block_pos)
+bool DnpFile::_getNextIp(std::string &ip_str, unsigned long *current_index, unsigned long ip_block_pos)
 {
     // No IP block position provided then default to the first block!
     if (ip_block_pos == -1)
@@ -510,8 +544,6 @@ bool DnpFile::_getNextIp(std::string &ip_str, unsigned long* current_index, unsi
     *current_index += 1;
 
     return true;
-
-
 }
 bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsigned long ip_block_pos)
 {

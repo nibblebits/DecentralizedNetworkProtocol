@@ -35,19 +35,23 @@ static struct dnp_kernel_packet *dnpdatagramsock_pop_packet(struct socket *sock)
 	struct dnp_dnpdatagramsock *datagram_sock = dnp_dnpdatagramsock(sock->sk);
 	mutex_lock(&datagram_sock->packet_queue_mutex);
 
+	if (list_empty(&datagram_sock->packet_queue))
+	{
+		printk(KERN_INFO "%s Nothing to pop\n", __FUNCTION__);
+		goto out;
+	}
+
 	struct dnp_packet_queue_element *element = (struct dnp_packet_queue_element *)list_last_entry(&datagram_sock->packet_queue, struct dnp_packet_queue_element, list);
 	if (!element)
 	{
 		goto out;
 	}
 
+	printk(KERN_INFO "%s element found %p\n", __FUNCTION__, element);
 	packet = element->packet;
-
+	
 	// Let's pop it off
 	list_del(&element->list);
-
-	// Free the element
-	kfree(element);
 
 out:
 	mutex_unlock(&datagram_sock->packet_queue_mutex);
@@ -56,24 +60,39 @@ out:
 
 void dnpdatagramsock_cleanup_packet_queue(struct socket *sock)
 {
-	// Let's cleanup our packets and dispose of them
 	struct dnp_dnpdatagramsock *datagram_sock = dnp_dnpdatagramsock(sock->sk);
 	struct list_head *packet_queue_list_head = &datagram_sock->packet_queue;
 	struct dnp_packet_queue_element *ptr = NULL;
 	struct dnp_packet_queue_element *ptr_next = NULL;
 	mutex_lock(&datagram_sock->packet_queue_mutex);
+
+	printk(KERN_INFO "%s packet_queue_list_head=%p\n", __FUNCTION__, packet_queue_list_head);
+	if (list_empty(packet_queue_list_head))
+	{
+		printk(KERN_INFO "%s packet queue is empty nothing to clean up\n", __FUNCTION__);
+		goto out;
+	}
+
+	printk(KERN_INFO "%s List not empty\n", __FUNCTION__);
+
+
 	list_for_each_entry_safe(ptr, ptr_next, packet_queue_list_head, list)
 	{
 		printk(KERN_INFO "%s %p\n", __FUNCTION__, ptr);
 		kfree(ptr->packet);
 		list_del(&ptr->list);
-		kfree(ptr);
 	}
+
+out:
 	mutex_unlock(&datagram_sock->packet_queue_mutex);
 }
 
 static int dnpdatagramsock_cleanup_socket(struct socket *sock)
 {
+	printk(KERN_INFO "sock=%p\n", sock->sk);
+	dnp_kernel_server_up_send_and_waits_for_socket(sock->sk);
+	dnpdatagramsock_cleanup_packet_queue(sock);
+
 	mutex_lock(&sock_list_mutex);
 	dnp_remove_socket(&sock_list, sock);
 	mutex_unlock(&sock_list_mutex);
@@ -81,8 +100,6 @@ static int dnpdatagramsock_cleanup_socket(struct socket *sock)
 	dnp_remove_port(&root_port_list, sock);
 	mutex_unlock(&port_list_mutex);
 
-	dnp_kernel_server_up_send_and_waits_for_socket(sock->sk);
-	dnpdatagramsock_cleanup_packet_queue(sock);
 	return 0;
 }
 
@@ -174,7 +191,6 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		goto out;
 	}
 
-	
 	printk("%s send_to_addr start=%x\n", __FUNCTION__, send_to_addr[0]);
 
 	struct iovec *iov = (struct iovec *)msg->msg_iter.iov;
@@ -218,23 +234,22 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 {
 	ENSURE_KERNEL_BINDED
 	lock_sock(sock->sk);
-	int res = 0;
+	int res = -EIO;
 	printk(KERN_INFO "%s", __FUNCTION__);
 	struct dnp_kernel_packet *p = dnpdatagramsock_pop_packet(sock);
 	if (!p)
 	{
-		printk("%s failed to pop packet from stack, maybe no packets waiting?\n", __FUNCTION__);
+		printk(KERN_ERR "%s failed to pop packet from stack, maybe no packets waiting?\n", __FUNCTION__);
 		res = -EIO;
 		goto out;
 	}
 
-
 	struct dnp_kernel_packet_recv_datagram *datagram = (struct dnp_kernel_packet_recv_datagram *)&p->recv_datagram_packet;
 	struct dnp_address_in *dnp_out_address = (struct dnp_address_in *)msg->msg_name;
 
-
 	if (len > sizeof(datagram->buf))
 	{
+		printk(KERN_ERR "%s requested size is bigger than datagram buffer size\n", __FUNCTION__);
 		res = -EMSGSIZE;
 		goto out;
 	}
@@ -251,7 +266,12 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	iov->iov_len = len;
 
 out:
-	kfree(p);
+	if (p)
+	{
+	//	printk(KERN_INFO "%s p=%p freeing now\n", __FUNCTION__, p);
+	//	kfree(p);
+	}
+
 	release_sock(sock->sk);
 	return res;
 }

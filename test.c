@@ -69,7 +69,7 @@ printf("port %i\n", cliaddr.port);
     struct dnp_address_in in_addr;
     memset(&in_addr, 0, sizeof(in_addr));
     
-    char buf[1024];
+    char buf[512];
     socklen_t len = sizeof(in_addr);
     cliaddr.port = 20;
     rc = recvfrom(sockfd, &buf, sizeof(buf), 0, (struct sockaddr*) &in_addr, &len);

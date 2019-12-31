@@ -16,7 +16,7 @@
 
 #define DNP_SOCKET_OPTION_MUST_DELIVER 0
 
-#define DNP_MAX_DATAGRAM_PACKET_SIZE 1024
+#define DNP_MAX_DATAGRAM_PACKET_SIZE 512
 #define __SOCK_SIZE__ 16 /* sizeof(struct sockaddr)	*/
 
 typedef int DNP_SEMAPHORE_ID;
