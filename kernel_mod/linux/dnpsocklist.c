@@ -47,7 +47,7 @@ int dnp_remove_socket(struct list_head *list, struct socket *sock)
         return -EIO;
 
     list_del(&dnp_socket->list);
-
+    kfree(dnp_socket);
     return 0;
 }
 

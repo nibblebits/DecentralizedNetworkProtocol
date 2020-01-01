@@ -8,7 +8,6 @@ DEFINE_MUTEX(port_list_mutex);
 LIST_HEAD(sock_list);
 DEFINE_MUTEX(sock_list_mutex);
 
-#warning TODO MUST FIX MEMORY LEAKS IN POPPING OF DATA IN MANY FILES
 
 /**
  * Clones the provided packet and then adds it to the packet queue for this socket
