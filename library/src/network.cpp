@@ -58,6 +58,14 @@ Network::~Network()
         this->network_general_thread.join();
 }
 
+void Network::makeEncryptedHash(struct DnpEncryptedHash* out, const char* hash, DATA_HASH_SIZE size)
+{
+    if (size > sizeof(out->hash))
+        throw std::logic_error("Hash exceeds maximum possible size for transit");
+    memcpy(out, hash, size);
+    out->size = size;
+}
+
 void Network::network_recv_thread_operation(Network *network)
 {
     network->network_recv_thread_run();
@@ -332,30 +340,32 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
 {
     struct DnpDatagramPacket* datagram_packet = &packet->datagram_packet;
     // Let's ensure this packet has not been tampered with
-    std::string public_key = std::string(datagram_packet->sender_public_key, sizeof(datagram_packet->sender_public_key));
+    std::string public_key = std::string(datagram_packet->sender_public_key, strnlen(datagram_packet->sender_public_key, sizeof(datagram_packet->sender_public_key)));
     std::string public_key_hashed = md5_hex(public_key);
     std::string sender_address = std::string(datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
     if (sender_address != public_key_hashed)
     {
-        std::cout << "Sender is a liar" << std::endl;
-        return;
+        throw std::logic_error("Sender address does not match the public key hashed, someone has tampered with this packet!");
     }
     
+    int encrypted_data_hash_size = datagram_packet->data.hash.size;
+    if (encrypted_data_hash_size > sizeof(datagram_packet->data.hash.hash))
+        throw std::logic_error("Forged packet attempts to exceed hash bounds!");
+
+    std::string encrypted_data_hash = std::string(datagram_packet->data.hash.hash, encrypted_data_hash_size); 
     std::string decrypted_data_hash = "";
     try
     {
-        Rsa::decrypt_public(public_key, datagram_packet->data.encrypted_hash, decrypted_data_hash);
+        Rsa::decrypt_public(public_key, encrypted_data_hash, decrypted_data_hash);
     }
     catch(...)
     {
-        std::cout << "Failed to decrypt hash with public key, this sender is illegal" << std::endl;
-        return;
+        throw std::logic_error("Failed to decrypt hash with public key, this sender is illegal!");
     }
 
     if (md5_hex(std::string(datagram_packet->data.buf, sizeof(datagram_packet->data.buf))) != decrypted_data_hash)
     {
-        std::cout << "Data was tampered with!" << std::endl;
-        return;
+        throw std::logic_error("This packet has tampered data");
     }
     
     CREATE_KERNEL_PACKET(kernel_packet, DNP_KERNEL_PACKET_TYPE_RECV_DATAGRAM);

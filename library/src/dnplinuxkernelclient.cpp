@@ -190,6 +190,7 @@ void DnpLinuxKernelClient::initNetworkDatagramPacketFromKernelPacket(struct Pack
     memcpy(net_packet.datagram_packet.data.buf, kern_packet.datagram_packet.buf, sizeof(net_packet.datagram_packet.data.buf));
 }
 
+
 void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_packet &res_packet, struct dnp_kernel_packet &packet)
 {
     if (packet.type != DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM)
@@ -197,8 +198,8 @@ void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_pac
         throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "You passed in an illegal packet, we are expecting a DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM");
     }
 
-    char buf[DNP_ID_SIZE];
-    memcpy(buf, packet.datagram_packet.buf, DNP_ID_SIZE);
+    char buf[sizeof(packet.datagram_packet.buf)];
+    memcpy(buf, packet.datagram_packet.buf, sizeof(packet.datagram_packet.buf));
 
     DnpFile *dnp_file = this->system->getDnpFile();
     struct dnp_address dnp_address;
@@ -211,14 +212,13 @@ void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_pac
     std::string private_key = "";
     if (dnp_file->readPrivateKey(&dnp_address, private_key))
     {
-        std::cout << "Priv: " << private_key << std::endl;
+        throw DnpException(DNP_EXCEPTION_PRIVATE_KEY_FAILURE, "Problem finding private key for sender, are you allowed to send as this id");
     }
 
-     std::string public_key = "";
+    std::string public_key = "";
     if (dnp_file->readPublicKey(&dnp_address, public_key))
     {
-        std::cout << "pub: " << public_key << std::endl;
-        std::cout << "size: " << public_key.size() << std::endl;
+        throw DnpException(DNP_EXCEPTION_PRIVATE_KEY_FAILURE, "Problem finding public key for sender, this may indicate corruption in the DNP file");
     }
 
 
@@ -238,7 +238,7 @@ void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_pac
     // send the packet to the decentralized network
     struct Packet net_packet;
     initNetworkDatagramPacketFromKernelPacket(net_packet, packet);
-    memcpy(net_packet.datagram_packet.data.encrypted_hash, encrypted_data_hash.c_str(), encrypted_data_hash.size());
+    Network::makeEncryptedHash(&net_packet.datagram_packet.data.hash, encrypted_data_hash.c_str(), encrypted_data_hash.size());
     memcpy(net_packet.datagram_packet.sender_public_key, public_key.c_str(), public_key.size());
     this->system->getNetwork()->broadcast(&net_packet);
 }

@@ -40,6 +40,8 @@ namespace Dnp
 {
 class DnpFile;
 
+typedef unsigned short DATA_HASH_SIZE;
+
 typedef unsigned short PACKET_TYPE;
 enum
 {
@@ -72,12 +74,17 @@ struct DnpAddress
     unsigned short port;
 };
 
+struct DnpEncryptedHash
+{
+    char hash[MAX_RSA_ENCRYPTION_OUTPUT_SIZE];
+    DATA_HASH_SIZE size;
+};
+
 struct DnpBufferData
 {
     char buf[DNP_MAX_DATAGRAM_PACKET_SIZE];
     // Once decrypted contains original MD5 hash of buf or was tampered with
-    char encrypted_hash[MAX_RSA_ENCRYPTION_OUTPUT_SIZE];
-
+    struct DnpEncryptedHash hash;
 };
 
 struct DnpDatagramPacket
@@ -113,7 +120,7 @@ public:
 
     void sendPacket(std::string ip, struct Packet *packet);
     void broadcast(struct Packet *packet);
-
+    static void makeEncryptedHash(struct DnpEncryptedHash* out, const char* hash, DATA_HASH_SIZE size);
 private:
     void ping();
     void addActiveIp(std::string ip);

@@ -33,13 +33,13 @@ int main()
     memset(&cliaddr, 0, sizeof(cliaddr));
 
     char addr[DNP_ID_SIZE+1];
-    memcpy(addr, "42614bd2ef87371f282b8e500f9c0428", sizeof(addr));
+    memcpy(addr, "633438662a8686eee743de0a02386535", sizeof(addr));
     addr[DNP_ID_SIZE] = 0;
 
     // Filling server information
     servaddr.port = htons(PORT);
     servaddr.addr = addr;
-    memcpy(servaddr.addr, "42614bd2ef87371f282b8e500f9c0428", sizeof(servaddr.addr));
+    memcpy(servaddr.addr, "633438662a8686eee743de0a02386535", sizeof(servaddr.addr));
 
     cliaddr.port = htons(PORT);
     cliaddr.addr = addr;
@@ -64,7 +64,6 @@ int main()
     }
 
 printf("port %i\n", cliaddr.port);
-    sleep(2);
 
     struct dnp_address_in in_addr;
     memset(&in_addr, 0, sizeof(in_addr));

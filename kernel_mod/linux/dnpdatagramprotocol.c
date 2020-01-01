@@ -8,6 +8,8 @@ DEFINE_MUTEX(port_list_mutex);
 LIST_HEAD(sock_list);
 DEFINE_MUTEX(sock_list_mutex);
 
+#warning TODO MUST FIX MEMORY LEAKS IN POPPING OF DATA IN MANY FILES
+
 /**
  * Clones the provided packet and then adds it to the packet queue for this socket
  */
@@ -52,6 +54,8 @@ static struct dnp_kernel_packet *dnpdatagramsock_pop_packet(struct socket *sock)
 	
 	// Let's pop it off
 	list_del(&element->list);
+	// Free the element
+	kfree(element);
 
 out:
 	mutex_unlock(&datagram_sock->packet_queue_mutex);
@@ -81,6 +85,7 @@ void dnpdatagramsock_cleanup_packet_queue(struct socket *sock)
 		printk(KERN_INFO "%s %p\n", __FUNCTION__, ptr);
 		kfree(ptr->packet);
 		list_del(&ptr->list);
+		kfree(ptr);
 	}
 
 out:
@@ -234,7 +239,7 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 {
 	ENSURE_KERNEL_BINDED
 	lock_sock(sock->sk);
-	int res = -EIO;
+	int res = 0;
 	printk(KERN_INFO "%s", __FUNCTION__);
 	struct dnp_kernel_packet *p = dnpdatagramsock_pop_packet(sock);
 	if (!p)
@@ -268,8 +273,8 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 out:
 	if (p)
 	{
-	//	printk(KERN_INFO "%s p=%p freeing now\n", __FUNCTION__, p);
-	//	kfree(p);
+		printk(KERN_INFO "%s p=%p freeing now\n", __FUNCTION__, p);
+		kfree(p);
 	}
 
 	release_sock(sock->sk);

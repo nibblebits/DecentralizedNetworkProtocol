@@ -53,14 +53,14 @@ void Rsa::decrypt_public(const std::string& pub_key, const std::string& input, s
     std::unique_ptr<char[]> decrypted = std::make_unique<char[]>(RSA_size(p_rsa));
     memset(decrypted.get(), 0, RSA_size(p_rsa));
     
-    int encrypt_len;
-    if ((encrypt_len = RSA_public_decrypt(input.size(), (unsigned char *)input.c_str(),
+    int decrypt_len;
+    if ((decrypt_len = RSA_public_decrypt(input.size(), (unsigned char *)input.c_str(),
                                           (unsigned char *)decrypted.get(), p_rsa, RSA_PKCS1_PADDING)) == -1)
     {
         throw std::logic_error("decrypt_public(): problem encrypting with private key");
     }
 
-    out = std::string(decrypted.get(), RSA_size(p_rsa));
+    out = std::string(decrypted.get(), decrypt_len);
     BIO_free(pkeybio);
 }
 
@@ -132,21 +132,19 @@ struct rsa_keypair Rsa::generateKeypair()
     size_t pri_len = BIO_pending(pri);
     size_t pub_len = BIO_pending(pub);
 
-    std::unique_ptr<char[]> pri_key(new char[pri_len + 1]);
-    std::unique_ptr<char[]> pub_key(new char[pub_len + 1]);
+    std::unique_ptr<char[]> pri_key(new char[pri_len]);
+    std::unique_ptr<char[]> pub_key(new char[pub_len]);
 
     BIO_read(pri, pri_key.get(), pri_len);
     BIO_read(pub, pub_key.get(), pub_len);
 
-    pub_key[pub_len] = '\0';
-    pri_key[pri_len] = '\0';
 
 
     struct rsa_keypair rsa_keypair;
-    rsa_keypair.pub_key = std::string(pub_key.get());
-    rsa_keypair.private_key = std::string(pri_key.get());
-    rsa_keypair.private_key_md5_hash = md5_hex(rsa_keypair.pub_key);
-    rsa_keypair.pub_key_md5_hash = md5_hex(rsa_keypair.private_key);
+    rsa_keypair.pub_key = std::string(pub_key.get(), pub_len);
+    rsa_keypair.private_key = std::string(pri_key.get(), pri_len);
+    rsa_keypair.private_key_md5_hash = md5_hex(rsa_keypair.private_key);
+    rsa_keypair.pub_key_md5_hash = md5_hex(rsa_keypair.pub_key);
 
    
     return rsa_keypair;
