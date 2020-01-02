@@ -17,7 +17,7 @@ void createDnpFile()
   std::cout << "PUB KEY HASH: " << keypair.pub_key_md5_hash << std::endl;
   dnp_file.addDnpAddress(keypair.pub_key_md5_hash, keypair.pub_key, keypair.private_key);
 
-  dnp_file.addIp("82.31.214.2");
+  dnp_file.addIp("167.172.61.56");
   dnp_file.addIp("127.0.0.1");
 
   

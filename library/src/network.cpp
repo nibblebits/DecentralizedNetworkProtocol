@@ -339,6 +339,7 @@ void Network::handleActiveIpPacket(struct sockaddr_in client_address, struct Pac
 
 void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
+    std::cout << "Handle datagram packet called" << std::endl;
     struct DnpDatagramPacket* datagram_packet = &packet->datagram_packet;
     std::string sender_address = std::string(datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
 
@@ -383,4 +384,8 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
     kernel_packet_recv_datagram->send_to.port = datagram_packet->send_to.port;
     memcpy(kernel_packet_recv_datagram->buf, datagram_packet->data.buf, sizeof(datagram_packet->data.buf));
     this->system->getKernelClient()->sendPacketToKernel(kernel_packet);
+
+        std::cout << "Handle datagram packet success" << std::endl;
+
+
 }

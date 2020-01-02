@@ -240,6 +240,7 @@ void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_pac
     initNetworkDatagramPacketFromKernelPacket(net_packet, packet);
     Network::makeEncryptedHash(&net_packet.datagram_packet.data.hash, encrypted_data_hash.c_str(), encrypted_data_hash.size());
     memcpy(net_packet.datagram_packet.sender_public_key, public_key.c_str(), public_key.size());
+    std::cout << "Broadcasting datagram packet" << std::endl;
     this->system->getNetwork()->broadcast(&net_packet);
 }
 
