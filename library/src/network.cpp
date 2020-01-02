@@ -287,7 +287,7 @@ void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Pac
             break;
         }
     }
-    catch (std::exception &ex)
+    catch (std::logic_error &ex)
     {
         // IO out for now but this should log into an error log internal logging mechnism
         std::cout << ex.what() << std::endl;
@@ -342,12 +342,14 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
     std::cout << "Handle datagram packet called" << std::endl;
     struct DnpDatagramPacket* datagram_packet = &packet->datagram_packet;
     std::string sender_address = std::string(datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
+    std::string receiver_address = std::string(datagram_packet->send_to.address, sizeof(datagram_packet->send_to.address));
 
     // If we are not a private key holder then we should not send this packet to the kernel
-    if (!this->dnp_file->isPrivateKeyHolder(sender_address))
+    if (!this->dnp_file->isPrivateKeyHolder(receiver_address))
     {
         return;
     }
+    
     // Let's ensure this packet has not been tampered with
     std::string public_key = std::string(datagram_packet->sender_public_key, strnlen(datagram_packet->sender_public_key, sizeof(datagram_packet->sender_public_key)));
     std::string public_key_hashed = md5_hex(public_key);
