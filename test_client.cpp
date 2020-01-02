@@ -10,7 +10,7 @@
 #include <string>
 #include "dnpmodshared.h"
 
-#define PORT 8078
+#define PORT 8080
 #define MAXLINE 1024
 
 // Driver code

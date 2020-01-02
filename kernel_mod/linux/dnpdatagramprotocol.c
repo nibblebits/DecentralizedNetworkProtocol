@@ -8,6 +8,16 @@ DEFINE_MUTEX(port_list_mutex);
 LIST_HEAD(sock_list);
 DEFINE_MUTEX(sock_list_mutex);
 
+
+static int dnpdatagramsock_is_binded(struct socket* sock)
+{
+	struct dnp_dnpdatagramsock* datagram_sock = dnp_dnpdatagramsock(sock->sk);
+	if (datagram_sock->port != 0)
+		return 0;
+
+	return -EIO;
+}
+
 /**
  * Clones the provided packet and then adds it to the packet queue for this socket
  */
@@ -195,6 +205,8 @@ int dnpdatagramsock_setsockopt(struct socket *sock, int level, int optname,
 int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	ENSURE_KERNEL_BINDED
+	ENSURE_SOCKET_BINDED_TO_PORT(sock)
+
 	int err = 0;
 
 	lock_sock(sock->sk);
@@ -267,6 +279,8 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 							int flags)
 {
 	ENSURE_KERNEL_BINDED
+	ENSURE_SOCKET_BINDED_TO_PORT(sock)
+
 	lock_sock(sock->sk);
 	int res = 0;
 	printk(KERN_INFO "%s", __FUNCTION__);
@@ -415,6 +429,7 @@ static void dnpdatagramsock_destruct(struct sock *sk)
 
 static void dnpdatagramsock_init(struct dnp_dnpdatagramsock *sock)
 {
+	sock->port = 0;
 	memset(sock->options, 0, sizeof(sock->options));
 	mutex_init(&sock->packet_queue_mutex);
 	sema_init(&sock->packet_queue_added_sem, 0);
