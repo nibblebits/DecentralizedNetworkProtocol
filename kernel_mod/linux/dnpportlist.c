@@ -1,11 +1,12 @@
 #include "dnp.h"
 
-bool dnp_is_port_set(struct list_head* list, __u16 port)
+bool dnp_is_port_set(struct list_head* list, __u16 port, const char* dnp_id)
 {
     struct dnp_binded_port* ptr = NULL;
     list_for_each_entry(ptr, list, list)
     {
-        if (ptr->port == port)
+        struct dnp_dnpdatagramsock* sk = dnp_dnpdatagramsock(ptr->sock->sk);
+        if (ptr->port == port && memcmp(sk->addr, dnp_id, DNP_ID_SIZE) == 0)
             return true;
     }
 
@@ -44,7 +45,8 @@ int dnp_set_port(struct list_head* list, __u16 port, struct socket* sock)
     binded_port->sock = sock;
     binded_port->port = port;
 
-    if (dnp_is_port_set(list, port))
+    struct dnp_dnpdatagramsock* sk = dnp_dnpdatagramsock(sock->sk); 
+    if (dnp_is_port_set(list, port, sk->addr))
     {
         return -EADDRINUSE;
     }

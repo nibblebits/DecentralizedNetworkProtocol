@@ -88,7 +88,7 @@ void dnp_kernel_server_new_packet(DNP_KERNEL_PACKET_TYPE type, struct dnp_kernel
 int dnp_kernel_server_send_and_wait(struct dnp_kernel_packet* packet, struct dnp_kernel_packet* res_packet, struct sock* sk);
 
 int dnp_set_port(struct list_head* list, __u16 port, struct socket* sock);
-bool dnp_is_port_set(struct list_head* list, __u16 port);
+bool dnp_is_port_set(struct list_head* list, __u16 port, const char* dnp_id);
 struct dnp_binded_port* dnp_get_port_by_socket(struct list_head* list, struct socket* socket);
 int dnp_remove_port(struct list_head* list, struct socket* sock);
 

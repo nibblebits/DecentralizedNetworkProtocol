@@ -378,6 +378,10 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 		printk(KERN_INFO "%s Generated address for bind\n", __FUNCTION__);
 	}
 
+
+	// Great let's now set the binded address in this socket
+	memcpy(dnp_dnpdatagramsock(sock->sk)->addr, &addr, sizeof(addr));
+	
 	__u16 port = dnp_address->port;
 	mutex_lock(&port_list_mutex);
 	err = dnp_set_port(&root_port_list, port, sock);
@@ -388,8 +392,6 @@ int dnpdatagramsock_bind(struct socket *sock, struct sockaddr *saddr, int len)
 		goto out;
 	}
 
-	// Great let's now set the binded address in this socket
-	memcpy(dnp_dnpdatagramsock(sock->sk)->addr, &addr, sizeof(addr));
 	dnp_dnpdatagramsock(sock->sk)->port = dnp_address->port;
 out:
 	return err;
