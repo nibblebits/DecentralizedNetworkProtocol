@@ -4,7 +4,7 @@
 #include <linux/socket.h>
 #define NETLINK_DNP 31
 
-#define DNP_FAMILY 41
+#define DNP_FAMILY 40
 #define DNP_DATAGRAM_PROTOCOL 0
 #define DNP_MAX_PROTOCOLS 1
 #define DNP_MAX_OPTIONS 4
