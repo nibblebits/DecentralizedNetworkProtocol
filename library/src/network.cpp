@@ -336,13 +336,20 @@ void Network::handleActiveIpPacket(struct sockaddr_in client_address, struct Pac
     addActiveIp(active_ip);
 }
 
+
 void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
     struct DnpDatagramPacket* datagram_packet = &packet->datagram_packet;
+    std::string sender_address = std::string(datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
+
+    // If we are not a private key holder then we should not send this packet to the kernel
+    if (!this->dnp_file->isPrivateKeyHolder(sender_address))
+    {
+        return;
+    }
     // Let's ensure this packet has not been tampered with
     std::string public_key = std::string(datagram_packet->sender_public_key, strnlen(datagram_packet->sender_public_key, sizeof(datagram_packet->sender_public_key)));
     std::string public_key_hashed = md5_hex(public_key);
-    std::string sender_address = std::string(datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
     if (sender_address != public_key_hashed)
     {
         throw std::logic_error("Sender address does not match the public key hashed, someone has tampered with this packet!");

@@ -8,7 +8,6 @@ DEFINE_MUTEX(port_list_mutex);
 LIST_HEAD(sock_list);
 DEFINE_MUTEX(sock_list_mutex);
 
-
 /**
  * Clones the provided packet and then adds it to the packet queue for this socket
  */
@@ -22,6 +21,10 @@ static int dnpdatagramsock_push_packet(struct socket *sock, struct dnp_kernel_pa
 	mutex_lock(&datagram_sock->packet_queue_mutex);
 	list_add(&element->list, &datagram_sock->packet_queue);
 	mutex_unlock(&datagram_sock->packet_queue_mutex);
+
+	// We must up the packet queue added semaphore so people waiting for packets are alerted
+	up(&datagram_sock->packet_queue_added_sem);
+
 	return 0;
 }
 
@@ -50,7 +53,7 @@ static struct dnp_kernel_packet *dnpdatagramsock_pop_packet(struct socket *sock)
 
 	printk(KERN_INFO "%s element found %p\n", __FUNCTION__, element);
 	packet = element->packet;
-	
+
 	// Let's pop it off
 	list_del(&element->list);
 	// Free the element
@@ -59,6 +62,34 @@ static struct dnp_kernel_packet *dnpdatagramsock_pop_packet(struct socket *sock)
 out:
 	mutex_unlock(&datagram_sock->packet_queue_mutex);
 	return packet;
+}
+
+/**
+ * Waits until there is a packet in the packet queue and then returns zero on success.
+ * If something went wrong or waiting failed then a non zero value is returned
+ */
+int dnpdatagramsock_wait_for_packet(struct socket *sock)
+{
+	int err = 0;
+	int empty = 0;
+	struct dnp_dnpdatagramsock *datagram_sock = dnp_dnpdatagramsock(sock->sk);
+	mutex_lock(&datagram_sock->packet_queue_mutex);
+	empty = list_empty(&datagram_sock->packet_queue);
+	mutex_unlock(&datagram_sock->packet_queue_mutex);
+
+	if (empty)
+	{
+		// The list is empty so we should wait until a packet arrives
+		err = down_interruptible(&datagram_sock->packet_queue_added_sem);
+		if (err < 0)
+		{
+			printk(KERN_ERR "%s waiting interrupted by user\n", __FUNCTION__);
+			goto out;
+		}
+	}
+	
+out:
+	return err;
 }
 
 void dnpdatagramsock_cleanup_packet_queue(struct socket *sock)
@@ -78,8 +109,7 @@ void dnpdatagramsock_cleanup_packet_queue(struct socket *sock)
 
 	printk(KERN_INFO "%s List not empty\n", __FUNCTION__);
 
-
-	list_for_each_entry_safe(ptr, ptr_next, packet_queue_list_head, list)
+	list_for_each_entry_safe(ptr, ptr_next, packet_queue_list_head, list) 
 	{
 		printk(KERN_INFO "%s %p\n", __FUNCTION__, ptr);
 		kfree(ptr->packet);
@@ -240,6 +270,12 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	lock_sock(sock->sk);
 	int res = 0;
 	printk(KERN_INFO "%s", __FUNCTION__);
+
+	if (flags & DNP_WAIT)
+	{
+		dnpdatagramsock_wait_for_packet(sock);
+	}
+
 	struct dnp_kernel_packet *p = dnpdatagramsock_pop_packet(sock);
 	if (!p)
 	{
@@ -381,6 +417,7 @@ static void dnpdatagramsock_init(struct dnp_dnpdatagramsock *sock)
 {
 	memset(sock->options, 0, sizeof(sock->options));
 	mutex_init(&sock->packet_queue_mutex);
+	sema_init(&sock->packet_queue_added_sem, 0);
 	INIT_LIST_HEAD(&sock->packet_queue);
 }
 
@@ -390,6 +427,9 @@ static int dnpdatagramsock_create(struct net *net, struct socket *sock,
 	struct sock *sk;
 
 	printk(KERN_INFO "dnpdatagramsock_create()");
+
+	printk(KERN_INFO "%s socket_list=%p\n", __FUNCTION__, &sock_list);
+
 
 	sock->ops = &dnpdatagramsock_ops;
 
@@ -420,7 +460,7 @@ out:
 static int dnpdatagramsock_recv(struct dnp_kernel_packet *packet)
 {
 	printk(KERN_INFO "%s packet processing\n", __FUNCTION__);
-
+	printk(KERN_INFO "%s socket_list=%p\n", __FUNCTION__, &sock_list);
 	struct dnp_socket *dnp_sock = NULL;
 	mutex_lock(&sock_list_mutex);
 	dnp_sock = dnp_get_socket_by_address(&sock_list, &packet->recv_datagram_packet.send_to);

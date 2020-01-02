@@ -210,13 +210,13 @@ void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_pac
     }
 
     std::string private_key = "";
-    if (dnp_file->readPrivateKey(&dnp_address, private_key))
+    if (!dnp_file->readPrivateKey(&dnp_address, private_key))
     {
         throw DnpException(DNP_EXCEPTION_PRIVATE_KEY_FAILURE, "Problem finding private key for sender, are you allowed to send as this id");
     }
 
     std::string public_key = "";
-    if (dnp_file->readPublicKey(&dnp_address, public_key))
+    if (!dnp_file->readPublicKey(&dnp_address, public_key))
     {
         throw DnpException(DNP_EXCEPTION_PRIVATE_KEY_FAILURE, "Problem finding public key for sender, this may indicate corruption in the DNP file");
     }
@@ -252,9 +252,10 @@ void DnpLinuxKernelClient::send_datagram_then_respond(struct dnp_kernel_packet p
     {
         send_datagram_then_respond_impl(res_packet, packet);
     }
-    catch (std::exception &ex)
+    catch (std::logic_error &ex)
     {
         res_packet.datagram_res_packet.res = DNP_KERNEL_SERVER_DATAGRAM_FAILED_UNKNOWN;
+        std::cout << ex.what() << std::endl;
     }
 
     if (send_packet(res_packet) != DNP_LINUX_KERNEL_SEND_OK)

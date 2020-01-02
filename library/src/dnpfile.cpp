@@ -550,3 +550,21 @@ bool DnpFile::getNextIp(std::string &ip_str, unsigned long *current_index, unsig
     std::lock_guard<std::mutex> lock(this->mutex);
     return _getNextIp(ip_str, current_index, ip_block_pos);
 }
+
+
+bool DnpFile::isPrivateKeyHolder(std::string address)
+{
+    std::lock_guard<std::mutex> lock(this->mutex);
+    return _isPrivateKeyHolder(address);
+}
+
+bool DnpFile::_isPrivateKeyHolder(std::string address)
+{
+    struct dnp_address dnp_address;
+    if (!_getDnpAddress(address, &dnp_address))
+    {
+        return false;
+    }
+
+    return (dnp_address.private_key_pos != 0);
+}

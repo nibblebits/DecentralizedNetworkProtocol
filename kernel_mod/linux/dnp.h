@@ -31,6 +31,8 @@ struct dnp_dnpdatagramsock
 	// Queued packets to be read with recvfrom on client side
 	struct list_head packet_queue;
 	struct mutex packet_queue_mutex;
+	// Get's upped when a packet is added to the queue
+	struct semaphore packet_queue_added_sem;
 };
 
 #define dnp_dnpdatagramsock(sk) ((struct dnp_dnpdatagramsock *) sk)

@@ -84,6 +84,14 @@ public:
     bool hasDnpAddress(std::string address);
     void addDnpAddress(std::string address, std::string public_key, std::string private_key);
 
+    /**
+     * Returns true if the provided address belongs to us and we are a private key holder
+     * and can send packets out from the provided address
+     * 
+     * \address The address to check if we hold a private key for
+     */
+    bool isPrivateKeyHolder(std::string address);
+
     bool readPrivateKey(struct dnp_address* dnp_address, std::string& out);
     bool readPublicKey(struct dnp_address* dnp_address, std::string& out);
 
@@ -94,6 +102,7 @@ public:
    
 
 private:
+    bool _isPrivateKeyHolder(std::string address);
     bool _readPrivateKey(struct dnp_address* dnp_address, std::string& out);
     bool _readPublicKey(struct dnp_address* dnp_address, std::string& out);
     bool _getNextIp(std::string &ip_str, unsigned long* current_index, unsigned long ip_block_pos=-1);

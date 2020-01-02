@@ -14,6 +14,7 @@ bool dnp_has_sock(struct list_head *list, struct socket *socket)
 
 struct dnp_socket* dnp_get_socket_by_address(struct list_head* list, struct dnp_kernel_address* addr)
 {
+    printk("%s()", __FUNCTION__);
     struct dnp_socket* ptr = NULL;
     list_for_each_entry(ptr, list, list)
     {
@@ -42,6 +43,7 @@ struct dnp_socket *dnp_get_dnp_socket_by_socket(struct list_head *list, struct s
 
 int dnp_remove_socket(struct list_head *list, struct socket *sock)
 {
+    printk("%s()", __FUNCTION__);
     struct dnp_socket *dnp_socket = dnp_get_dnp_socket_by_socket(list, sock);
     if (!dnp_socket)
         return -EIO;

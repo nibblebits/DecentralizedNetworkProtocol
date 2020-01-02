@@ -22,6 +22,12 @@
 typedef int DNP_SEMAPHORE_ID;
 typedef unsigned char DNP_KERNEL_PACKET_TYPE;
 
+// Socket Flags
+enum
+{
+    DNP_WAIT = 0b00000001,
+};
+
 enum
 {
     DNP_KERNEL_PACKET_TYPE_HELLO,
