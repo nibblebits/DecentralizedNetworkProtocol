@@ -24,7 +24,10 @@ static int dnpdatagramsock_is_binded(struct socket* sock)
 static int dnpdatagramsock_push_packet(struct socket *sock, struct dnp_kernel_packet *packet)
 {
 	struct dnp_dnpdatagramsock *datagram_sock = dnp_dnpdatagramsock(sock->sk);
-	struct dnp_packet_queue_element *element = (struct dnp_packet_queue_element *)kzalloc(sizeof(struct dnp_socket), GFP_USER);
+	struct dnp_packet_queue_element *element = (struct dnp_packet_queue_element *)kzalloc(sizeof(struct dnp_packet_queue_element), GFP_USER);
+	if (!element)
+		return -ENOMEM;
+		
 	// Packet must be copied as otherwise data will be lost
 	element->packet = kzalloc(sizeof(struct dnp_kernel_packet), GFP_USER);
 	memcpy(element->packet, packet, sizeof(struct dnp_kernel_packet));
