@@ -206,7 +206,7 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	ENSURE_KERNEL_BINDED
 	ENSURE_SOCKET_BINDED_TO_PORT(sock)
-
+	
 	int err = 0;
 
 	lock_sock(sock->sk);
@@ -221,7 +221,7 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		goto out;
 	}
 
-	struct dnp_address *dnp_address = (struct dnp_address *)msg->msg_name;
+	DECLARE_SOCKADDR(struct dnp_address *, dnp_address, msg->msg_name);
 	if (dnp_address->addr == NULL)
 	{
 		printk(KERN_ERR "%s dnp_address->addr is NULL\n", __FUNCTION__);
@@ -299,7 +299,7 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	}
 
 	struct dnp_kernel_packet_recv_datagram *datagram = (struct dnp_kernel_packet_recv_datagram *)&p->recv_datagram_packet;
-	struct dnp_address_in *dnp_out_address = (struct dnp_address_in *)msg->msg_name;
+	DECLARE_SOCKADDR(struct dnp_address_in *, dnp_out_address, msg->msg_name);
 
 	if (len > sizeof(datagram->buf))
 	{
