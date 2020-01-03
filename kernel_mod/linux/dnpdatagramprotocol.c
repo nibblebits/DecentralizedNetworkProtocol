@@ -240,10 +240,12 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		goto out;
 	}
 
-	printk("%s send_to_addr start=%x\n", __FUNCTION__, send_to_addr[0]);
+	if(copy_from_iter(&packet->datagram_packet.buf, msg->msg_iter.count, &msg->msg_iter) < 0)
+	{
+		printk(KERN_ERR "%s failed to read message from IOV\n", __FUNCTION__);
+		goto out;
+	}
 
-	struct iovec *iov = (struct iovec *)msg->msg_iter.iov;
-	memcpy(&packet->datagram_packet.buf, iov->iov_base, iov->iov_len);
 	memcpy(packet->datagram_packet.send_from.address, dnp_dnpdatagramsock(sock->sk)->addr, sizeof(packet->datagram_packet.send_from.address));
 	packet->datagram_packet.send_from.port = dnp_dnpdatagramsock(sock->sk)->port;
 	memcpy(packet->datagram_packet.send_to.address, send_to_addr, sizeof(packet->datagram_packet.send_to.address));
@@ -254,6 +256,7 @@ int dnpdatagramsock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	if (err < 0)
 	{
 		printk(KERN_ERR "%s failed to send packet to kernel server has it crashed? err=%i\n", __FUNCTION__, err);
+		err = -EIO;
 		goto out;
 	}
 
@@ -315,15 +318,23 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 	printk(KERN_INFO "%s dnp_out_address->addr=%p, datagram->send_from.address=%p\n", __FUNCTION__, dnp_out_address->addr, &datagram->send_from.address);
 	memcpy(dnp_out_address->addr, &datagram->send_from.address, sizeof(datagram->send_from.address));
+	
 	printk(KERN_INFO "%s finished copying send from address from datagram", __FUNCTION__);
 	dnp_out_address->port = datagram->send_from.port;
 	msg->msg_namelen = sizeof(struct dnp_address_in);
 
 	struct iovec *iov = (struct iovec *)msg->msg_iter.iov;
 	memcpy(iov->iov_base, &datagram->buf, len);
+	if (copy_to_iter(&datagram->buf, msg->msg_iter.count, &msg->msg_iter) < 0)
+	{
+		printk(KERN_ERR "%s failed to copy data to user space\n", __FUNCTION__);
+		res = -EIO;
+		goto out;
+	}
+
 	msg->msg_iter.count = 1;
 
-	// Length is always size of buffer, but needs to be changed so its the length the user actually intended to send
+	// Length is always size of buffer
 	iov->iov_len = len;
 
 out:
