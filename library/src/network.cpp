@@ -303,6 +303,7 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct 
     std::string my_ip = std::string(packet->hello_packet.your_ip, INET_ADDRSTRLEN);
     this->our_ip = my_ip;
 
+    std::cout << "Client address port" << client_address.sin_port <<  " htons: " << htons(client_address.sin_port) << std::endl;
     Packet packet_to_send = {0};
     packet_to_send.type = PACKET_TYPE_RESPOND_HELLO;
     memcpy(packet_to_send.hello_packet.your_ip, their_ip.c_str(), their_ip.size());
