@@ -324,7 +324,6 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	msg->msg_namelen = sizeof(struct dnp_address_in);
 
 	struct iovec *iov = (struct iovec *)msg->msg_iter.iov;
-	memcpy(iov->iov_base, &datagram->buf, len);
 	if (copy_to_iter(&datagram->buf, msg->msg_iter.count, &msg->msg_iter) < 0)
 	{
 		printk(KERN_ERR "%s failed to copy data to user space\n", __FUNCTION__);
