@@ -315,6 +315,7 @@ int dnpdatagramsock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 	printk(KERN_INFO "%s dnp_out_address->addr=%p, datagram->send_from.address=%p\n", __FUNCTION__, dnp_out_address->addr, &datagram->send_from.address);
 	memcpy(dnp_out_address->addr, &datagram->send_from.address, sizeof(datagram->send_from.address));
+	printk(KERN_INFO "%s finished copying send from address from datagram", __FUNCTION__);
 	dnp_out_address->port = datagram->send_from.port;
 	msg->msg_namelen = sizeof(struct dnp_address_in);
 
