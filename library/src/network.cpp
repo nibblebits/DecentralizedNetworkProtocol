@@ -58,7 +58,7 @@ Network::~Network()
         this->network_general_thread.join();
 }
 
-void Network::makeEncryptedHash(struct DnpEncryptedHash* out, const char* hash, DATA_HASH_SIZE size)
+void Network::makeEncryptedHash(struct DnpEncryptedHash *out, const char *hash, DATA_HASH_SIZE size)
 {
     if (size > sizeof(out->hash))
         throw std::logic_error("Hash exceeds maximum possible size for transit");
@@ -169,18 +169,26 @@ int Network::get_valid_socket(struct sockaddr_in *servaddr)
     return s;
 }
 
+void Network::sendHelloPacket(std::string to)
+{
+    // We should not send a hello packet if we they have already responded to a hello packet
+
+    struct Packet packet;
+    memset(&packet, 0, sizeof(struct Packet));
+    packet.type = PACKET_TYPE_INITIAL_HELLO;
+    memcpy(packet.hello_packet.your_ip, to.c_str(), to.size());
+    sendPacket(to, &packet);
+
+    std::cout << "Sent hello packet: " << to << std::endl;
+}
+
 void Network::scan()
 {
     for (std::string ip : this->known_ips)
     {
         if (!isActiveIp(ip))
         {
-            struct Packet packet;
-            memset(&packet, 0, sizeof(struct Packet));
-            packet.type = PACKET_TYPE_INITIAL_HELLO;
-            memcpy(packet.hello_packet.your_ip, ip.c_str(), ip.size());
-            sendPacket(ip, &packet);
-            std::cout << "Sent hello packet: " << ip << std::endl;
+            this->sendHelloPacket(ip);
         }
     }
 }
@@ -218,7 +226,6 @@ void Network::sendPacket(std::string ip, struct Packet *packet)
     }
 }
 
-
 void Network::broadcast(struct Packet *packet)
 {
     for (std::string ip : this->active_ips)
@@ -230,7 +237,6 @@ void Network::broadcast(struct Packet *packet)
 
 void Network::addActiveIp(std::string ip)
 {
-
     if (std::find(this->active_ips.begin(), this->active_ips.end(), ip) == this->active_ips.end())
     {
         // Let's save this active ip
@@ -281,7 +287,7 @@ void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Pac
 
         case PACKET_TYPE_DATAGRAM:
             handleDatagramPacket(client_address, packet);
-        break;
+            break;
         case PACKET_TYPE_PING:
             // Do nothing ping recieved used to keep nat open
             break;
@@ -303,11 +309,16 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct 
     std::string my_ip = std::string(packet->hello_packet.your_ip, INET_ADDRSTRLEN);
     this->our_ip = my_ip;
 
-    std::cout << "Client address port" << client_address.sin_port <<  " htons: " << htons(client_address.sin_port) << std::endl;
-    Packet packet_to_send = {0};
-    packet_to_send.type = PACKET_TYPE_RESPOND_HELLO;
-    memcpy(packet_to_send.hello_packet.your_ip, their_ip.c_str(), their_ip.size());
-    sendPacket(their_ip, &packet_to_send);
+    std::cout << "Client address: " << their_ip << std::endl;
+    
+    // Only respond to this hello if they are not in our active IP list already
+    if (!isActiveIp(their_ip))
+    {
+        Packet packet_to_send = {0};
+        packet_to_send.type = PACKET_TYPE_RESPOND_HELLO;
+        memcpy(packet_to_send.hello_packet.your_ip, their_ip.c_str(), their_ip.size());
+        sendPacket(their_ip, &packet_to_send);
+    }
 
     // Let's send all our known active ip's to this guy
     for (std::string ip : this->active_ips)
@@ -334,14 +345,17 @@ void Network::handleHelloRespondPacket(struct sockaddr_in client_address, struct
 void Network::handleActiveIpPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
     std::string active_ip = std::string(packet->active_ip_packet.ip_address, strnlen(packet->active_ip_packet.ip_address, INET_ADDRSTRLEN));
-    addActiveIp(active_ip);
+    // Let's say hello to this IP we have just been made aware of if they respond we will add them as an active IP
+    if (!isActiveIp(active_ip))
+    {
+        sendHelloPacket(active_ip);
+    }
 }
-
 
 void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
     std::cout << "Handle datagram packet called" << std::endl;
-    struct DnpDatagramPacket* datagram_packet = &packet->datagram_packet;
+    struct DnpDatagramPacket *datagram_packet = &packet->datagram_packet;
     std::string sender_address = std::string(datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
     std::string receiver_address = std::string(datagram_packet->send_to.address, sizeof(datagram_packet->send_to.address));
 
@@ -350,7 +364,7 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
     {
         return;
     }
-    
+
     // Let's ensure this packet has not been tampered with
     std::string public_key = std::string(datagram_packet->sender_public_key, strnlen(datagram_packet->sender_public_key, sizeof(datagram_packet->sender_public_key)));
     std::string public_key_hashed = md5_hex(public_key);
@@ -358,18 +372,18 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
     {
         throw std::logic_error("Sender address does not match the public key hashed, someone has tampered with this packet!");
     }
-    
+
     int encrypted_data_hash_size = datagram_packet->data.hash.size;
     if (encrypted_data_hash_size > sizeof(datagram_packet->data.hash.hash))
         throw std::logic_error("Forged packet attempts to exceed hash bounds!");
 
-    std::string encrypted_data_hash = std::string(datagram_packet->data.hash.hash, encrypted_data_hash_size); 
+    std::string encrypted_data_hash = std::string(datagram_packet->data.hash.hash, encrypted_data_hash_size);
     std::string decrypted_data_hash = "";
     try
     {
         Rsa::decrypt_public(public_key, encrypted_data_hash, decrypted_data_hash);
     }
-    catch(...)
+    catch (...)
     {
         throw std::logic_error("Failed to decrypt hash with public key, this sender is illegal!");
     }
@@ -378,9 +392,9 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
     {
         throw std::logic_error("This packet has tampered data");
     }
-    
+
     CREATE_KERNEL_PACKET(kernel_packet, DNP_KERNEL_PACKET_TYPE_RECV_DATAGRAM);
-    struct dnp_kernel_packet_recv_datagram* kernel_packet_recv_datagram = &kernel_packet.recv_datagram_packet;
+    struct dnp_kernel_packet_recv_datagram *kernel_packet_recv_datagram = &kernel_packet.recv_datagram_packet;
     memcpy(kernel_packet_recv_datagram->send_from.address, datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
     kernel_packet_recv_datagram->send_from.port = datagram_packet->send_from.port;
     memcpy(kernel_packet_recv_datagram->send_to.address, datagram_packet->send_to.address, sizeof(datagram_packet->send_to.address));
@@ -388,7 +402,5 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
     memcpy(kernel_packet_recv_datagram->buf, datagram_packet->data.buf, sizeof(datagram_packet->data.buf));
     this->system->getKernelClient()->sendPacketToKernel(kernel_packet);
 
-        std::cout << "Handle datagram packet success" << std::endl;
-
-
+    std::cout << "Handle datagram packet success" << std::endl;
 }

@@ -123,6 +123,7 @@ public:
     static void makeEncryptedHash(struct DnpEncryptedHash* out, const char* hash, DATA_HASH_SIZE size);
 private:
     void ping();
+    void sendHelloPacket(std::string to);
     void addActiveIp(std::string ip);
     bool isActiveIp(std::string ip);
     void handleIncomingPacket(struct sockaddr_in client_address, struct Packet *packet);
