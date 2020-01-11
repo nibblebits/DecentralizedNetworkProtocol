@@ -21,27 +21,40 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "types.h"
 #include "dnpmodshared.h"
 #include <string>
-#include <vector>
+#include <list>
 #include <thread>
+#include <atomic>
 #include <mutex>
+#include <memory>
 #include <queue>
+#include <vector>
+#include <array>
 #include <condition_variable>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include "networkpacket.h"
 #define MAX_PACKET_SIZE 65527
 #define PORT_RANGE_START 30001
 #define PORT_RANGE_END 30010
 #define MAX_MESSAGE_SIZE 1024
+#define MAX_HANDLED_PACKET_VECTOR_SIZE 50000
 
 namespace Dnp
 {
 class DnpFile;
 
-typedef unsigned short DATA_HASH_SIZE;
+typedef unsigned int NETWORK_OBJECT_ID;
+typedef unsigned char NETWORK_OBJECT_TYPE;
+enum
+{
+    NETWORK_OBJECT_TYPE_TEST
+};
 
+typedef unsigned short DATA_HASH_SIZE;
+typedef unsigned int PACKET_ID;
 typedef unsigned short PACKET_TYPE;
 enum
 {
@@ -49,7 +62,8 @@ enum
     PACKET_TYPE_RESPOND_HELLO,
     PACKET_TYPE_ACTIVE_IP,
     PACKET_TYPE_PING,
-    PACKET_TYPE_DATAGRAM
+    PACKET_TYPE_DATAGRAM,
+    PACKET_TYPE_OBJECT_PUBLISH
 };
 
 struct HelloPacket
@@ -80,6 +94,23 @@ struct DnpEncryptedHash
     DATA_HASH_SIZE size;
 };
 
+struct NetworkObject
+{
+    NETWORK_OBJECT_ID id;
+    NETWORK_OBJECT_TYPE type;
+    unsigned short size;
+    time_t created;
+};
+
+/**
+ * Simple test object used for testing purposes
+ */
+struct TestNetworkObject
+{
+    struct NetworkObject obj;
+    unsigned int payload;
+};
+
 struct DnpBufferData
 {
     char buf[DNP_MAX_DATAGRAM_PACKET_SIZE];
@@ -93,16 +124,23 @@ struct DnpDatagramPacket
     struct DnpAddress send_to;
     struct DnpBufferData data;
     char sender_public_key[MAX_PUBLIC_KEY_SIZE];
+};
 
+struct DnpNetworkObjectPacket
+{
+    struct NetworkObject obj;
 };
 
 struct Packet
 {
+    PACKET_ID id;
     PACKET_TYPE type;
     union {
+        // hello_packet used for both inital hello's and responses
         struct HelloPacket hello_packet;
         struct ActiveIpPacket active_ip_packet;
         struct DnpDatagramPacket datagram_packet;
+        struct DnpNetworkObjectPacket network_object_packet;
     };
 };
 
@@ -118,10 +156,28 @@ public:
     void scan();
     void bindMyself();
 
+    template<typename T>
+    std::unique_ptr<T> newPacket();    
+    
+    struct Packet createPacket(PACKET_TYPE type);
+    void initNetworkObject(struct NetworkObject *obj);
+
+    /**
+     * Creates a simple random network object on the decentralized network
+     */
+    void createTestNetworkObject();
+
+    void publishNetworkObject(struct NetworkObject *obj);
     void sendPacket(std::string ip, struct Packet *packet);
     void broadcast(struct Packet *packet);
-    static void makeEncryptedHash(struct DnpEncryptedHash* out, const char* hash, DATA_HASH_SIZE size);
+    std::vector<std::string>& getActiveIps();
+
+    static void makeEncryptedHash(struct DnpEncryptedHash *out, const char *hash, DATA_HASH_SIZE size);
+
 private:
+    long getRandomIdUsingDefaultOffset();
+    bool hasHandledPacket(struct Packet *packet);
+    void markPacketHandled(struct Packet *packet);
     void ping();
     void sendHelloPacket(std::string to);
     void addActiveIp(std::string ip);
@@ -131,6 +187,7 @@ private:
     void handleHelloRespondPacket(struct sockaddr_in client_address, struct Packet *packet);
     void handleActiveIpPacket(struct sockaddr_in client_address, struct Packet *packet);
     void handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet);
+    void handleNetworkObjectPublishPacket(struct sockaddr_in client_address, struct Packet *packet);
 
     void createActiveIpPacket(std::string ip, struct Packet *packet);
     int get_valid_socket(struct sockaddr_in *servaddr);
@@ -156,6 +213,19 @@ private:
     DnpFile *dnp_file;
 
     System *system;
+
+    /**
+     * This is the offset that will be used for all id's its incremented every time its used
+     */
+    std::atomic_long offset;
+
+    // The Id's of all the packets that have already been handled and received
+    std::list<unsigned long> handled_packets;
+
+    /**
+     * Each network object in this array is in char form so should be casted to the correct type
+     */
+    std::vector<std::unique_ptr<char[]>> network_objects;
 };
 } // namespace Dnp
 

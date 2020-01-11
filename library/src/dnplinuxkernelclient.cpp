@@ -18,6 +18,8 @@ DnpLinuxKernelClient::~DnpLinuxKernelClient()
 {
 }
 
+
+
 void DnpLinuxKernelClient::bind_socket()
 {
     struct sockaddr_nl src_addr;
@@ -182,7 +184,9 @@ void DnpLinuxKernelClient::create_dnp_id_then_respond(DNP_SEMAPHORE_ID sem_id)
 
 void DnpLinuxKernelClient::initNetworkDatagramPacketFromKernelPacket(struct Packet &net_packet, struct dnp_kernel_packet &kern_packet)
 {
-    net_packet.type = PACKET_TYPE_DATAGRAM;
+    if (net_packet.type != PACKET_TYPE_DATAGRAM)
+        throw std::logic_error("Expecting a datagram packet");
+
     memcpy(net_packet.datagram_packet.send_from.address, kern_packet.datagram_packet.send_from.address, sizeof(net_packet.datagram_packet.send_from.address));
     net_packet.datagram_packet.send_from.port = kern_packet.datagram_packet.send_from.port;
     memcpy(net_packet.datagram_packet.send_to.address, kern_packet.datagram_packet.send_to.address, sizeof(net_packet.datagram_packet.send_to.address));
@@ -236,7 +240,7 @@ void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_pac
 
 
     // send the packet to the decentralized network
-    struct Packet net_packet;
+    struct Packet net_packet = this->system->getNetwork()->createPacket(PACKET_TYPE_DATAGRAM);
     initNetworkDatagramPacketFromKernelPacket(net_packet, packet);
     Network::makeEncryptedHash(&net_packet.datagram_packet.data.hash, encrypted_data_hash.c_str(), encrypted_data_hash.size());
     memcpy(net_packet.datagram_packet.sender_public_key, public_key.c_str(), public_key.size());

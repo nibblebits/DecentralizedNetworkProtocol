@@ -20,6 +20,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "dnpfile.h"
 #include "dnpexception.h"
 #include "dnpmodshared.h"
+#include "networkpacket.h"
+#include "pingpacket.h"
+#include "hellorespondpacket.h"
 #include "misc.h"
 #include "crypto/rsa.h"
 #include <iostream>
@@ -47,6 +50,8 @@ Network::Network(System *system)
     this->our_ip = "unknown ip";
     this->dnp_file = system->getDnpFile();
     this->system = system;
+    this->offset = time(NULL);
+    createTestNetworkObject();
 }
 
 Network::~Network()
@@ -96,9 +101,8 @@ void Network::network_recv_thread_run()
 
 void Network::ping()
 {
-    Packet packet;
-    packet.type = PACKET_TYPE_PING;
-    broadcast(&packet);
+    std::unique_ptr<NetworkPacket> packet = newPacket<PingPacket>();
+    packet->broadcast();
 }
 
 void Network::network_general_thread_run()
@@ -169,13 +173,44 @@ int Network::get_valid_socket(struct sockaddr_in *servaddr)
     return s;
 }
 
+
+long Network::getRandomIdUsingDefaultOffset()
+{
+    long result = 0;
+    srand(time(NULL));
+    result = offset + rand() % 0xffffffff;
+    offset++;
+    return result;
+}
+struct Packet Network::createPacket(PACKET_TYPE type)
+{
+    struct Packet packet;
+    memset(&packet, 0, sizeof(struct Packet));
+    packet.type = type;
+    packet.id = getRandomIdUsingDefaultOffset(); 
+    return packet;
+}
+
+void Network::createTestNetworkObject()
+{
+    struct TestNetworkObject obj;
+    this->initNetworkObject((struct NetworkObject*) &obj);
+  //  this->publishNetworkObject((struct NetworkObject*) &obj);
+}
+
+
+void Network::initNetworkObject(struct NetworkObject* obj)
+{
+    memset(obj, 0, sizeof(struct NetworkObject));
+    obj->created = time(NULL);
+    obj->id = getRandomIdUsingDefaultOffset();
+}
+
 void Network::sendHelloPacket(std::string to)
 {
     // We should not send a hello packet if we they have already responded to a hello packet
 
-    struct Packet packet;
-    memset(&packet, 0, sizeof(struct Packet));
-    packet.type = PACKET_TYPE_INITIAL_HELLO;
+    struct Packet packet = createPacket(PACKET_TYPE_INITIAL_HELLO);
     memcpy(packet.hello_packet.your_ip, to.c_str(), to.size());
     sendPacket(to, &packet);
 
@@ -210,6 +245,13 @@ void Network::bindMyself()
     binded_cv.notify_all();
 }
 
+
+template <typename T>
+std::unique_ptr<T> Network::newPacket()
+{
+    return std::make_unique<T>(this);
+}
+
 void Network::sendPacket(std::string ip, struct Packet *packet)
 {
     struct sockaddr_in server_address;
@@ -233,6 +275,11 @@ void Network::broadcast(struct Packet *packet)
         std::cout << "Broadcasting to: " << ip << std::endl;
         sendPacket(ip, packet);
     }
+}
+
+std::vector<std::string>& Network::getActiveIps()
+{
+    return this->active_ips;
 }
 
 void Network::addActiveIp(std::string ip)
@@ -261,16 +308,43 @@ bool Network::isActiveIp(std::string ip)
 
 void Network::createActiveIpPacket(std::string ip, struct Packet *packet)
 {
-    memset(packet, 0, sizeof(struct Packet));
-    packet->type = PACKET_TYPE_ACTIVE_IP;
-    memset(packet->active_ip_packet.ip_address, 0, ip.size());
-    memcpy(packet->active_ip_packet.ip_address, ip.c_str(), ip.size());
+    struct Packet our_packet = createPacket(PACKET_TYPE_ACTIVE_IP);
+    memset(our_packet.active_ip_packet.ip_address, 0, ip.size());
+    memcpy(our_packet.active_ip_packet.ip_address, ip.c_str(), ip.size());
+    memcpy(packet, &our_packet, sizeof(our_packet));
+}
+
+
+bool Network::hasHandledPacket(struct Packet* packet)
+{
+    for (long id : this->handled_packets)
+    {
+        if (id == packet->id)
+            return true;
+    }
+
+    return false;
+}
+
+void Network::markPacketHandled(struct Packet* packet)
+{
+    // We only hold a maximum amount of handled packets, whole point of this system is to help reduce chance of mass broadcast in a loop
+    if (this->handled_packets.size() > MAX_HANDLED_PACKET_VECTOR_SIZE)
+        this->handled_packets.pop_front();
+
+    this->handled_packets.push_back(packet->id);
 }
 
 void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
     try
     {
+        // If we already handled this packet then we should leave
+        if (hasHandledPacket(packet))
+        {
+            return;
+        }
+
         switch (packet->type)
         {
         case PACKET_TYPE_INITIAL_HELLO:
@@ -288,10 +362,16 @@ void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Pac
         case PACKET_TYPE_DATAGRAM:
             handleDatagramPacket(client_address, packet);
             break;
+
+        case PACKET_TYPE_OBJECT_PUBLISH:
+            handleNetworkObjectPublishPacket(client_address, packet);
+        break;
         case PACKET_TYPE_PING:
             // Do nothing ping recieved used to keep nat open
             break;
         }
+
+        markPacketHandled(packet);
     }
     catch (std::logic_error &ex)
     {
@@ -314,10 +394,9 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct 
     // Only respond to this hello if they are not in our active IP list already
     if (!isActiveIp(their_ip))
     {
-        Packet packet_to_send = {0};
-        packet_to_send.type = PACKET_TYPE_RESPOND_HELLO;
-        memcpy(packet_to_send.hello_packet.your_ip, their_ip.c_str(), their_ip.size());
-        sendPacket(their_ip, &packet_to_send);
+        std::unique_ptr<HelloRespondPacket> packet = newPacket<HelloRespondPacket>();
+        packet->setTheirIp(their_ip);
+        packet->send(their_ip);
     }
 
     // Let's send all our known active ip's to this guy
@@ -403,4 +482,12 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
     this->system->getKernelClient()->sendPacketToKernel(kernel_packet);
 
     std::cout << "Handle datagram packet success" << std::endl;
+}
+
+void Network::handleNetworkObjectPublishPacket(struct sockaddr_in client_address, struct Packet *packet)
+{
+    struct NetworkObject* obj = &packet->network_object_packet.obj;
+    std::unique_ptr<char[]> ptr = std::unique_ptr<char[]>(new char[obj->size]);
+    memcpy(ptr.get(), obj, obj->size);
+    this->network_objects.push_back(std::move(ptr));
 }
