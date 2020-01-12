@@ -215,6 +215,7 @@ void Network::sendHelloPacket(std::string to)
     // We should not send a hello packet if we they have already responded to a hello packet
 
     std::unique_ptr<HelloPacket> packet = newPacket<HelloPacket>();
+    packet->setTheirIp(to);
     packet->send(to);
     std::cout << "Sent hello packet: " << to << std::endl;
 }
@@ -323,8 +324,26 @@ void Network::markPacketHandled(struct Packet *packet)
     this->handled_packets.push_back(packet->id);
 }
 
+std::unique_ptr<NetworkPacket> Network::resurrect(struct Packet* packet)
+{
+    std::unique_ptr<NetworkPacket> npacket = nullptr;
+
+    switch(packet->type)
+    {
+        case PACKET_TYPE_INITIAL_HELLO:
+            npacket = newPacket<HelloPacket>();
+        break;
+
+        default:
+            throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "Unsupported packet type: " + std::to_string(packet->type) + " cannot resurrect" );
+    }
+
+    return npacket;
+}
+
 void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
+    std::unique_ptr<NetworkPacket> npacket = nullptr;
     try
     {
         // If we already handled this packet then we should leave
@@ -336,7 +355,8 @@ void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Pac
         switch (packet->type)
         {
         case PACKET_TYPE_INITIAL_HELLO:
-            handleInitalHelloPacket(client_address, packet);
+            npacket = resurrect(packet);
+            handleInitalHelloPacket(client_address, static_cast<HelloPacket*>(npacket.get()));
             break;
 
         case PACKET_TYPE_RESPOND_HELLO:
@@ -368,14 +388,16 @@ void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Pac
     }
 }
 
-void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct Packet *packet)
+void Network::handleInitalHelloPacket(struct sockaddr_in client_address, HelloPacket *packet)
 {
+    // The hello packet has told us our IP address let's get it
+    this->our_ip = packet->getTheirIp();
+
+    // Let's get the real IP address of the person who sent this packet to us.
     char client_ip[INET_ADDRSTRLEN];
     memset(client_ip, 0, INET_ADDRSTRLEN);
     inet_ntop(AF_INET, &(client_address.sin_addr), client_ip, INET_ADDRSTRLEN);
     std::string their_ip = std::string(client_ip, strnlen(client_ip, INET_ADDRSTRLEN));
-    std::string my_ip = std::string(packet->hello_packet.your_ip, INET_ADDRSTRLEN);
-    this->our_ip = my_ip;
 
     std::cout << "Client address: " << their_ip << std::endl;
 

@@ -139,6 +139,7 @@ struct Packet
 };
 
 class System;
+class HelloPacket;
 class Network
 {
 public:
@@ -155,6 +156,12 @@ public:
     {
         return std::make_unique<T>(this);
     }
+
+    /**
+     * Takes the given binary packet and returns an object representing the packet provided
+     * Packet provided must have a valid type
+     */
+    std::unique_ptr<NetworkPacket> resurrect(struct Packet* packet);
 
     struct Packet createPacket(PACKET_TYPE type);
     void initNetworkObject(struct NetworkObject *obj);
@@ -180,7 +187,7 @@ private:
     void addActiveIp(std::string ip);
     bool isActiveIp(std::string ip);
     void handleIncomingPacket(struct sockaddr_in client_address, struct Packet *packet);
-    void handleInitalHelloPacket(struct sockaddr_in client_address, struct Packet *packet);
+    void handleInitalHelloPacket(struct sockaddr_in client_address, HelloPacket* packet);
     void handleHelloRespondPacket(struct sockaddr_in client_address, struct Packet *packet);
     void handleActiveIpPacket(struct sockaddr_in client_address, struct Packet *packet);
     void handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet);
