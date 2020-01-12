@@ -1,8 +1,10 @@
 #include "dnplinuxkernelclient.h"
 #include "dnpmodshared.h"
 #include "dnpexception.h"
+#include "network.h"
 #include "system.h"
 #include "crypto/rsa.h"
+#include "dnpdatagrampacket.h"
 #include "misc.h"
 #include <memory.h>
 #include <unistd.h>
@@ -17,8 +19,6 @@ DnpLinuxKernelClient::DnpLinuxKernelClient(System *system) : DnpKernelClient(sys
 DnpLinuxKernelClient::~DnpLinuxKernelClient()
 {
 }
-
-
 
 void DnpLinuxKernelClient::bind_socket()
 {
@@ -186,14 +186,7 @@ void DnpLinuxKernelClient::initNetworkDatagramPacketFromKernelPacket(struct Pack
 {
     if (net_packet.type != PACKET_TYPE_DATAGRAM)
         throw std::logic_error("Expecting a datagram packet");
-
-    memcpy(net_packet.datagram_packet.send_from.address, kern_packet.datagram_packet.send_from.address, sizeof(net_packet.datagram_packet.send_from.address));
-    net_packet.datagram_packet.send_from.port = kern_packet.datagram_packet.send_from.port;
-    memcpy(net_packet.datagram_packet.send_to.address, kern_packet.datagram_packet.send_to.address, sizeof(net_packet.datagram_packet.send_to.address));
-    net_packet.datagram_packet.send_to.port = kern_packet.datagram_packet.send_to.port;
-    memcpy(net_packet.datagram_packet.data.buf, kern_packet.datagram_packet.buf, sizeof(net_packet.datagram_packet.data.buf));
 }
-
 
 void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_packet &res_packet, struct dnp_kernel_packet &packet)
 {
@@ -201,9 +194,6 @@ void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_pac
     {
         throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "You passed in an illegal packet, we are expecting a DNP_KERNEL_PACKET_TYPE_SEND_DATAGRAM");
     }
-
-    char buf[sizeof(packet.datagram_packet.buf)];
-    memcpy(buf, packet.datagram_packet.buf, sizeof(packet.datagram_packet.buf));
 
     DnpFile *dnp_file = this->system->getDnpFile();
     struct dnp_address dnp_address;
@@ -225,27 +215,21 @@ void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_pac
         throw DnpException(DNP_EXCEPTION_PRIVATE_KEY_FAILURE, "Problem finding public key for sender, this may indicate corruption in the DNP file");
     }
 
-
-    std::string data_hash = md5_hex(std::string(buf, sizeof(buf)));
-    std::string encrypted_data_hash = "";
-    try
-    {
-        Rsa::encrypt_private(private_key, data_hash, encrypted_data_hash);    
-    }
-    catch(...)
-    {
-        throw DnpException(DNP_EXCEPTION_KERNEL_ENCRYPT_FAILED, "Failed to encrypt data hash using private key");
-    }
-
-
-
     // send the packet to the decentralized network
-    struct Packet net_packet = this->system->getNetwork()->createPacket(PACKET_TYPE_DATAGRAM);
-    initNetworkDatagramPacketFromKernelPacket(net_packet, packet);
-    Network::makeEncryptedHash(&net_packet.datagram_packet.data.hash, encrypted_data_hash.c_str(), encrypted_data_hash.size());
-    memcpy(net_packet.datagram_packet.sender_public_key, public_key.c_str(), public_key.size());
+
+    std::unique_ptr<DnpDatagramPacket> datagram = this->system->getNetwork()->newPacket<DnpDatagramPacket>();
+    datagram->setToAddress(std::string(packet.datagram_packet.send_to.address, sizeof(packet.datagram_packet.send_to.address)),
+                           packet.datagram_packet.send_to.port);
+    datagram->setFromAddress(std::string(packet.datagram_packet.send_from.address, sizeof(packet.datagram_packet.send_from.address)),
+                           packet.datagram_packet.send_from.port);
+
+    datagram->setData(packet.datagram_packet.buf, sizeof(packet.datagram_packet.buf));
+    datagram->setPrivateKey(private_key);
+    datagram->setPublicKey(public_key);
+
     std::cout << "Broadcasting datagram packet" << std::endl;
-    this->system->getNetwork()->broadcast(&net_packet);
+    datagram->broadcast();
+
 }
 
 void DnpLinuxKernelClient::send_datagram_then_respond(struct dnp_kernel_packet packet)
@@ -269,7 +253,7 @@ void DnpLinuxKernelClient::send_datagram_then_respond(struct dnp_kernel_packet p
     }
 }
 
-void DnpLinuxKernelClient::sendPacketToKernel(struct dnp_kernel_packet& packet)
+void DnpLinuxKernelClient::sendPacketToKernel(struct dnp_kernel_packet &packet)
 {
     send_packet(packet);
 }

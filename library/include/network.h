@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "config.h"
 #include "types.h"
+#include "crypto/rsa.h"
 #include "dnpmodshared.h"
 #include <string>
 #include <list>
@@ -53,7 +54,6 @@ enum
     NETWORK_OBJECT_TYPE_TEST
 };
 
-typedef unsigned short DATA_HASH_SIZE;
 typedef unsigned int PACKET_ID;
 typedef unsigned short PACKET_TYPE;
 enum
@@ -66,7 +66,7 @@ enum
     PACKET_TYPE_OBJECT_PUBLISH
 };
 
-struct HelloPacket
+struct _HelloPacket
 {
     // The IP Of the person we are connecting to. Let them know who they are
     char your_ip[INET_ADDRSTRLEN];
@@ -76,9 +76,9 @@ struct HelloPacket
 /*
     * Sent to clients to tell them about a currently active ip.
     */
-struct ActiveIpPacket
+struct _ActiveIpPacket
 {
-    // The activated IP
+    // The active IP
     char ip_address[INET_ADDRSTRLEN];
 };
 
@@ -86,12 +86,6 @@ struct DnpAddress
 {
     char address[DNP_ID_SIZE];
     unsigned short port;
-};
-
-struct DnpEncryptedHash
-{
-    char hash[MAX_RSA_ENCRYPTION_OUTPUT_SIZE];
-    DATA_HASH_SIZE size;
 };
 
 struct NetworkObject
@@ -115,10 +109,10 @@ struct DnpBufferData
 {
     char buf[DNP_MAX_DATAGRAM_PACKET_SIZE];
     // Once decrypted contains original MD5 hash of buf or was tampered with
-    struct DnpEncryptedHash hash;
+    struct DnpEncryptedHash ehash;
 };
 
-struct DnpDatagramPacket
+struct _DnpDatagramPacket
 {
     struct DnpAddress send_from;
     struct DnpAddress send_to;
@@ -137,9 +131,9 @@ struct Packet
     PACKET_TYPE type;
     union {
         // hello_packet used for both inital hello's and responses
-        struct HelloPacket hello_packet;
-        struct ActiveIpPacket active_ip_packet;
-        struct DnpDatagramPacket datagram_packet;
+        struct _HelloPacket hello_packet;
+        struct _ActiveIpPacket active_ip_packet;
+        struct _DnpDatagramPacket datagram_packet;
         struct DnpNetworkObjectPacket network_object_packet;
     };
 };
@@ -156,9 +150,12 @@ public:
     void scan();
     void bindMyself();
 
-    template<typename T>
-    std::unique_ptr<T> newPacket();    
-    
+    template <typename T>
+    std::unique_ptr<T> newPacket()
+    {
+        return std::make_unique<T>(this);
+    }
+
     struct Packet createPacket(PACKET_TYPE type);
     void initNetworkObject(struct NetworkObject *obj);
 
@@ -170,7 +167,7 @@ public:
     void publishNetworkObject(struct NetworkObject *obj);
     void sendPacket(std::string ip, struct Packet *packet);
     void broadcast(struct Packet *packet);
-    std::vector<std::string>& getActiveIps();
+    std::vector<std::string> &getActiveIps();
 
     static void makeEncryptedHash(struct DnpEncryptedHash *out, const char *hash, DATA_HASH_SIZE size);
 
@@ -189,7 +186,6 @@ private:
     void handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet);
     void handleNetworkObjectPublishPacket(struct sockaddr_in client_address, struct Packet *packet);
 
-    void createActiveIpPacket(std::string ip, struct Packet *packet);
     int get_valid_socket(struct sockaddr_in *servaddr);
     static void network_recv_thread_operation(Network *network);
     static void network_general_thread_operation(Network *network);

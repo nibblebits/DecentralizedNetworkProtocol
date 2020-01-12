@@ -1,4 +1,4 @@
-SYSTEM_OBJECT_FILES = ./build/dnpexception.o ./build/system.o ./build/misc.o ./build/rsa.o ./build/network.o ./build/networkpacket.o ./build/hellorespondpacket.o ./build/pingpacket.o ./build/dnpfile.o ./build/threadpool.o ./build/dnpkernelclient.o ./build/dnplinuxkernelclient.o
+SYSTEM_OBJECT_FILES = ./build/dnpexception.o ./build/system.o ./build/misc.o ./build/rsa.o ./build/network.o ./build/networkpacket.o ./build/dnpdatagrampacket.o ./build/activeippacket.o ./build/hellopacket.o ./build/hellorespondpacket.o ./build/pingpacket.o ./build/dnpfile.o ./build/threadpool.o ./build/dnpkernelclient.o ./build/dnplinuxkernelclient.o
 OBJECT_FILE_FLAGS = -c -g -fPIC -std=c++14 
 SYSTEM_LIB_LOCAL_FILENAME = libdnp.so
 SYSTEM_LIB_FILE_LOCATION = ./bin/${SYSTEM_LIB_LOCAL_FILENAME}
@@ -32,8 +32,19 @@ all: ${SYSTEM_OBJECT_FILES}
 ./build/pingpacket.o: ./src/network/pingpacket.cpp
 	g++ ${INCLUDES} ./src/network/pingpacket.cpp -o ./build/pingpacket.o ${OBJECT_FILE_FLAGS}
 
+./build/hellopacket.o: ./src/network/hellopacket.cpp
+	g++ ${INCLUDES} ./src/network/hellopacket.cpp -o ./build/hellopacket.o ${OBJECT_FILE_FLAGS}
+
+./build/activeippacket.o: ./src/network/activeippacket.cpp
+	g++ ${INCLUDES} ./src/network/activeippacket.cpp -o ./build/activeippacket.o ${OBJECT_FILE_FLAGS}
+
 ./build/hellorespondpacket.o: ./src/network/hellorespondpacket.cpp
 	g++ ${INCLUDES} ./src/network/hellorespondpacket.cpp -o ./build/hellorespondpacket.o ${OBJECT_FILE_FLAGS}
+
+
+./build/dnpdatagrampacket.o: ./src/network/dnpdatagrampacket.cpp
+	g++ ${INCLUDES} ./src/network/dnpdatagrampacket.cpp -o ./build/dnpdatagrampacket.o ${OBJECT_FILE_FLAGS}
+
 
 ./build/dnpkernelclient.o: ./src/dnpkernelclient.cpp
 	g++ ${INCLUDES} ./src/dnpkernelclient.cpp -o ./build/dnpkernelclient.o ${OBJECT_FILE_FLAGS}

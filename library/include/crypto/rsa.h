@@ -23,6 +23,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define RSA_H
 
 #include <string>
+#include "types.h"
+typedef unsigned short DATA_HASH_SIZE;
+
+
 namespace Dnp
 {
 struct rsa_keypair
@@ -33,6 +37,13 @@ struct rsa_keypair
     std::string private_key_md5_hash;
 };
 
+struct DnpEncryptedHash
+{
+    char hash[MAX_RSA_ENCRYPTION_OUTPUT_SIZE];
+    DATA_HASH_SIZE size;
+};
+
+
 class Rsa
 {
 public:
@@ -40,7 +51,10 @@ public:
     virtual ~Rsa();
     static void decrypt_public(const std::string &pub_key, const std::string &input, std::string &out);
     static void encrypt_private(const std::string &pri_key, const std::string &input, std::string &out);
+    static std::string makeEncryptedHash(const std::string& input, const std::string& private_key);
+    static void makeEncryptedHash(const std::string& input, const std::string& private_key, struct DnpEncryptedHash& out_hash);
     static struct rsa_keypair generateKeypair();
+    
 };
 } // namespace Dnp
 

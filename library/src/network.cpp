@@ -22,7 +22,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "dnpmodshared.h"
 #include "networkpacket.h"
 #include "pingpacket.h"
+#include "hellopacket.h"
 #include "hellorespondpacket.h"
+#include "activeippacket.h"
 #include "misc.h"
 #include "crypto/rsa.h"
 #include <iostream>
@@ -173,7 +175,6 @@ int Network::get_valid_socket(struct sockaddr_in *servaddr)
     return s;
 }
 
-
 long Network::getRandomIdUsingDefaultOffset()
 {
     long result = 0;
@@ -187,19 +188,18 @@ struct Packet Network::createPacket(PACKET_TYPE type)
     struct Packet packet;
     memset(&packet, 0, sizeof(struct Packet));
     packet.type = type;
-    packet.id = getRandomIdUsingDefaultOffset(); 
+    packet.id = getRandomIdUsingDefaultOffset();
     return packet;
 }
 
 void Network::createTestNetworkObject()
 {
     struct TestNetworkObject obj;
-    this->initNetworkObject((struct NetworkObject*) &obj);
-  //  this->publishNetworkObject((struct NetworkObject*) &obj);
+    this->initNetworkObject((struct NetworkObject *)&obj);
+    //  this->publishNetworkObject((struct NetworkObject*) &obj);
 }
 
-
-void Network::initNetworkObject(struct NetworkObject* obj)
+void Network::initNetworkObject(struct NetworkObject *obj)
 {
     memset(obj, 0, sizeof(struct NetworkObject));
     obj->created = time(NULL);
@@ -210,15 +210,14 @@ void Network::sendHelloPacket(std::string to)
 {
     // We should not send a hello packet if we they have already responded to a hello packet
 
-    struct Packet packet = createPacket(PACKET_TYPE_INITIAL_HELLO);
-    memcpy(packet.hello_packet.your_ip, to.c_str(), to.size());
-    sendPacket(to, &packet);
-
+    std::unique_ptr<HelloPacket> packet = newPacket<HelloPacket>();
+    packet->send(to);
     std::cout << "Sent hello packet: " << to << std::endl;
 }
 
 void Network::scan()
 {
+
     for (std::string ip : this->known_ips)
     {
         if (!isActiveIp(ip))
@@ -243,13 +242,6 @@ void Network::bindMyself()
         is_binded = true;
     }
     binded_cv.notify_all();
-}
-
-
-template <typename T>
-std::unique_ptr<T> Network::newPacket()
-{
-    return std::make_unique<T>(this);
 }
 
 void Network::sendPacket(std::string ip, struct Packet *packet)
@@ -277,7 +269,7 @@ void Network::broadcast(struct Packet *packet)
     }
 }
 
-std::vector<std::string>& Network::getActiveIps()
+std::vector<std::string> &Network::getActiveIps()
 {
     return this->active_ips;
 }
@@ -289,10 +281,11 @@ void Network::addActiveIp(std::string ip)
         // Let's save this active ip
         this->dnp_file->addIp(ip);
         this->active_ips.push_back(ip);
-        struct Packet packet;
-        createActiveIpPacket(ip, &packet);
-        broadcast(&packet);
     }
+
+    std::unique_ptr<ActiveIpPacket> packet = newPacket<ActiveIpPacket>();
+    packet->setIp(ip);
+    packet->broadcast();
 }
 
 bool Network::isActiveIp(std::string ip)
@@ -306,16 +299,7 @@ bool Network::isActiveIp(std::string ip)
     return false;
 }
 
-void Network::createActiveIpPacket(std::string ip, struct Packet *packet)
-{
-    struct Packet our_packet = createPacket(PACKET_TYPE_ACTIVE_IP);
-    memset(our_packet.active_ip_packet.ip_address, 0, ip.size());
-    memcpy(our_packet.active_ip_packet.ip_address, ip.c_str(), ip.size());
-    memcpy(packet, &our_packet, sizeof(our_packet));
-}
-
-
-bool Network::hasHandledPacket(struct Packet* packet)
+bool Network::hasHandledPacket(struct Packet *packet)
 {
     for (long id : this->handled_packets)
     {
@@ -326,7 +310,7 @@ bool Network::hasHandledPacket(struct Packet* packet)
     return false;
 }
 
-void Network::markPacketHandled(struct Packet* packet)
+void Network::markPacketHandled(struct Packet *packet)
 {
     // We only hold a maximum amount of handled packets, whole point of this system is to help reduce chance of mass broadcast in a loop
     if (this->handled_packets.size() > MAX_HANDLED_PACKET_VECTOR_SIZE)
@@ -365,7 +349,7 @@ void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Pac
 
         case PACKET_TYPE_OBJECT_PUBLISH:
             handleNetworkObjectPublishPacket(client_address, packet);
-        break;
+            break;
         case PACKET_TYPE_PING:
             // Do nothing ping recieved used to keep nat open
             break;
@@ -390,7 +374,7 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct 
     this->our_ip = my_ip;
 
     std::cout << "Client address: " << their_ip << std::endl;
-    
+
     // Only respond to this hello if they are not in our active IP list already
     if (!isActiveIp(their_ip))
     {
@@ -402,9 +386,9 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, struct 
     // Let's send all our known active ip's to this guy
     for (std::string ip : this->active_ips)
     {
-        struct Packet packet;
-        createActiveIpPacket(ip, &packet);
-        sendPacket(their_ip, &packet);
+        std::unique_ptr<ActiveIpPacket> packet = newPacket<ActiveIpPacket>();
+        packet->setIp(ip);
+        packet->send(their_ip);
     }
     addActiveIp(their_ip);
 }
@@ -434,7 +418,7 @@ void Network::handleActiveIpPacket(struct sockaddr_in client_address, struct Pac
 void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
     std::cout << "Handle datagram packet called" << std::endl;
-    struct DnpDatagramPacket *datagram_packet = &packet->datagram_packet;
+    struct _DnpDatagramPacket *datagram_packet = &packet->datagram_packet;
     std::string sender_address = std::string(datagram_packet->send_from.address, sizeof(datagram_packet->send_from.address));
     std::string receiver_address = std::string(datagram_packet->send_to.address, sizeof(datagram_packet->send_to.address));
 
@@ -452,11 +436,11 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
         throw std::logic_error("Sender address does not match the public key hashed, someone has tampered with this packet!");
     }
 
-    int encrypted_data_hash_size = datagram_packet->data.hash.size;
-    if (encrypted_data_hash_size > sizeof(datagram_packet->data.hash.hash))
+    int encrypted_data_hash_size = datagram_packet->data.ehash.size;
+    if (encrypted_data_hash_size > sizeof(datagram_packet->data.ehash.hash))
         throw std::logic_error("Forged packet attempts to exceed hash bounds!");
 
-    std::string encrypted_data_hash = std::string(datagram_packet->data.hash.hash, encrypted_data_hash_size);
+    std::string encrypted_data_hash = std::string(datagram_packet->data.ehash.hash, encrypted_data_hash_size);
     std::string decrypted_data_hash = "";
     try
     {
@@ -486,7 +470,7 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Pac
 
 void Network::handleNetworkObjectPublishPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
-    struct NetworkObject* obj = &packet->network_object_packet.obj;
+    struct NetworkObject *obj = &packet->network_object_packet.obj;
     std::unique_ptr<char[]> ptr = std::unique_ptr<char[]>(new char[obj->size]);
     memcpy(ptr.get(), obj, obj->size);
     this->network_objects.push_back(std::move(ptr));
