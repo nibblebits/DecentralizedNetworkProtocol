@@ -91,13 +91,17 @@ void Network::network_recv_thread_run()
     struct sockaddr_in client_address;
     socklen_t len = sizeof(struct sockaddr_in);
     int n;
-    char buffer[MAX_PACKET_SIZE];
+    struct Packet packet;
     while (1)
     {
-        n = recvfrom(our_socket, (char *)buffer, MAX_PACKET_SIZE,
+        n = recvfrom(our_socket, (char *)&packet, MAX_PACKET_SIZE,
                      MSG_WAITALL, (struct sockaddr *)&client_address,
                      &len);
-        handleIncomingPacket(client_address, (Packet *)buffer);
+
+        // We don't care about packets who are not the right length.. Thats a disaster waiting to happen
+        if (n != sizeof(packet))
+            continue;
+        handleIncomingPacket(client_address, &packet);
     }
 }
 
