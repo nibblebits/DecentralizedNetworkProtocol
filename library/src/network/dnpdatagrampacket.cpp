@@ -99,6 +99,8 @@ void DnpDatagramPacket::send(std::string ip)
     Rsa::makeEncryptedHash(data, this->private_key, this->ehash);
     memcpy(&net_packet.datagram_packet.data.ehash, &this->ehash, sizeof(this->ehash));
 
+    
+
     memcpy(net_packet.datagram_packet.sender_public_key, public_key.c_str(), public_key.size());
     this->network->sendPacket(ip, &net_packet);
 }
@@ -115,7 +117,7 @@ std::unique_ptr<DnpDatagramPacket> DnpDatagramPacket::resurrect(Network *network
     ddpacket->setFromAddress(std::string(rpacket->send_from.address, sizeof(rpacket->send_from.address)),
                              rpacket->send_from.port);
     ddpacket->setToAddress(std::string(rpacket->send_to.address, sizeof(rpacket->send_to.address)), rpacket->send_to.port);
-    ddpacket->setPublicKey(std::string(rpacket->sender_public_key, sizeof(rpacket->sender_public_key)));
+    ddpacket->setPublicKey(std::string(rpacket->sender_public_key, strnlen(rpacket->sender_public_key, sizeof(rpacket->sender_public_key))));
     ddpacket->setData(packet->datagram_packet.data.buf, sizeof(packet->datagram_packet.data.buf));
     ddpacket->setEncryptedDataHash(packet->datagram_packet.data.ehash);
     return ddpacket;
