@@ -80,6 +80,8 @@ struct _ActiveIpPacket
 {
     // The active IP
     char ip_address[INET_ADDRSTRLEN];
+    unsigned short ip_address_len;
+
 };
 
 struct DnpAddress
@@ -140,6 +142,9 @@ struct Packet
 
 class System;
 class HelloPacket;
+class HelloRespondPacket;
+class ActiveIpPacket;
+class DnpDatagramPacket;
 class Network
 {
 public:
@@ -188,9 +193,9 @@ private:
     bool isActiveIp(std::string ip);
     void handleIncomingPacket(struct sockaddr_in client_address, struct Packet *packet);
     void handleInitalHelloPacket(struct sockaddr_in client_address, HelloPacket* packet);
-    void handleHelloRespondPacket(struct sockaddr_in client_address, struct Packet *packet);
-    void handleActiveIpPacket(struct sockaddr_in client_address, struct Packet *packet);
-    void handleDatagramPacket(struct sockaddr_in client_address, struct Packet *packet);
+    void handleHelloRespondPacket(struct sockaddr_in client_address, struct HelloRespondPacket *packet);
+    void handleActiveIpPacket(struct sockaddr_in client_address, struct ActiveIpPacket *packet);
+    void handleDatagramPacket(struct sockaddr_in client_address, struct DnpDatagramPacket *packet);
     void handleNetworkObjectPublishPacket(struct sockaddr_in client_address, struct Packet *packet);
 
     int get_valid_socket(struct sockaddr_in *servaddr);
