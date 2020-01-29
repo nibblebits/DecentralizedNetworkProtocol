@@ -50,6 +50,11 @@ void DnpDatagramPacket::setPrivateKey(std::string private_key)
     this->private_key = private_key;
 }
 
+void DnpDatagramPacket::setEncryptedDataHash(struct DnpEncryptedHash ehash)
+{
+    this->ehash = ehash;
+}
+
 struct DnpAddress DnpDatagramPacket::getToAddress()
 {
     return this->to;

@@ -339,6 +339,18 @@ std::unique_ptr<NetworkPacket> Network::resurrect(struct Packet* packet)
             npacket = HelloRespondPacket::resurrect(this, packet);
         break;
 
+        case PACKET_TYPE_DATAGRAM:
+            npacket = DnpDatagramPacket::resurrect(this, packet);
+        break;
+
+        case PACKET_TYPE_ACTIVE_IP:
+            npacket = ActiveIpPacket::resurrect(this, packet);
+        break;
+        
+        case PACKET_TYPE_PING:
+            npacket = PingPacket::resurrect(this, packet);
+        break;
+        
         default:
             throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "Unsupported packet type: " + std::to_string(packet->type) + " cannot resurrect" );
     }

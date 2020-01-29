@@ -26,6 +26,8 @@ void HelloRespondPacket::send(std::string ip)
 {
     Packet packet_to_send = network->createPacket(PACKET_TYPE_RESPOND_HELLO);
     memcpy(packet_to_send.hello_packet.your_ip, their_ip.c_str(), their_ip.size());
+    packet_to_send.hello_packet.your_ip_len = their_ip.size();
+
     network->sendPacket(their_ip, &packet_to_send);
 }
 
