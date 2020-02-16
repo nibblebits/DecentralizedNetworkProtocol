@@ -1,4 +1,4 @@
-SYSTEM_OBJECT_FILES = ./build/dnpexception.o ./build/system.o ./build/misc.o ./build/rsa.o ./build/network.o ./build/networkpacket.o ./build/dnpdatagrampacket.o ./build/activeippacket.o ./build/hellopacket.o ./build/hellorespondpacket.o ./build/pingpacket.o ./build/dnpfile.o ./build/threadpool.o ./build/dnpkernelclient.o ./build/dnplinuxkernelclient.o
+SYSTEM_OBJECT_FILES =  ./build/ipv4address.o ./build/networkobjectmanager.o ./build/networkobject.o ./build/clientgroupnetworkobject.o ./build/testnetworkobject.o ./build/dnpexception.o ./build/system.o ./build/misc.o ./build/rsa.o ./build/network.o ./build/networkpacket.o ./build/dnpdatagrampacket.o ./build/activeippacket.o ./build/hellopacket.o ./build/hellorespondpacket.o ./build/pingpacket.o ./build/dnpfile.o ./build/threadpool.o ./build/dnpkernelclient.o ./build/dnplinuxkernelclient.o
 OBJECT_FILE_FLAGS = -c -g -fPIC -std=c++14 
 SYSTEM_LIB_LOCAL_FILENAME = libdnp.so
 SYSTEM_LIB_FILE_LOCATION = ./bin/${SYSTEM_LIB_LOCAL_FILENAME}
@@ -22,6 +22,7 @@ all: ${SYSTEM_OBJECT_FILES}
 ./build/rsa.o: ./src/crypto/rsa.cpp
 	g++ ${INCLUDES} ./src/crypto/rsa.cpp -o ./build/rsa.o ${OBJECT_FILE_FLAGS}
 
+
 ./build/network.o: ./src/network.cpp
 	g++ ${INCLUDES} ./src/network.cpp -o ./build/network.o ${OBJECT_FILE_FLAGS}
 
@@ -40,6 +41,26 @@ all: ${SYSTEM_OBJECT_FILES}
 
 ./build/hellorespondpacket.o: ./src/network/hellorespondpacket.cpp
 	g++ ${INCLUDES} ./src/network/hellorespondpacket.cpp -o ./build/hellorespondpacket.o ${OBJECT_FILE_FLAGS}
+
+
+./build/ipv4address.o: ./src/network/ipv4address.cpp
+	g++ ${INCLUDES} ./src/network/ipv4address.cpp -o ./build/ipv4address.o ${OBJECT_FILE_FLAGS}
+
+
+./build/networkobjectmanager.o: ./src/network/networkobjectmanager.cpp
+	g++ ${INCLUDES} ./src/network/networkobjectmanager.cpp -o ./build/networkobjectmanager.o ${OBJECT_FILE_FLAGS}
+
+
+./build/networkobject.o: ./src/network/networkobject.cpp
+	g++ ${INCLUDES} ./src/network/networkobject.cpp -o ./build/networkobject.o ${OBJECT_FILE_FLAGS}
+
+./build/testnetworkobject.o: ./src/network/testnetworkobject.cpp
+	g++ ${INCLUDES} ./src/network/testnetworkobject.cpp -o ./build/testnetworkobject.o ${OBJECT_FILE_FLAGS}
+
+
+./build/clientgroupnetworkobject.o: ./src/network/clientgroupnetworkobject.cpp
+	g++ ${INCLUDES} ./src/network/clientgroupnetworkobject.cpp -o ./build/clientgroupnetworkobject.o ${OBJECT_FILE_FLAGS}
+
 
 
 ./build/dnpdatagrampacket.o: ./src/network/dnpdatagrampacket.cpp

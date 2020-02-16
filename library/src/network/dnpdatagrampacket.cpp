@@ -10,6 +10,8 @@ DnpDatagramPacket::DnpDatagramPacket(Network *network) : NetworkPacket(network)
 {
     memset(&this->to, 0, sizeof(this->to));
     memset(&this->from, 0, sizeof(this->from));
+    memset(&this->ehash, 0, sizeof(this->ehash));
+
     this->data = "";
     this->private_key = "";
     this->public_key = "";
@@ -87,8 +89,14 @@ struct DnpEncryptedHash DnpDatagramPacket::getEncryptedDataHash()
 
 void DnpDatagramPacket::send(std::string ip)
 {
-    if (this->private_key == "" || this->public_key == "")
-        throw std::logic_error("You must provide a public and private key");
+    if (this->public_key.empty())
+        throw std::logic_error("You must provide a public key");
+
+    // The data hash either has to be provided to us or a private key so we can hash it ourselves.
+    if (this->ehash.size == 0 && this->private_key.empty())
+    {       
+         throw std::logic_error("You must provide a private key");
+    }
 
     struct Packet net_packet = this->network->createPacket(PACKET_TYPE_DATAGRAM);
     memcpy(net_packet.datagram_packet.send_from.address, &this->from, sizeof(this->from));

@@ -26,6 +26,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "hellorespondpacket.h"
 #include "dnpdatagrampacket.h"
 #include "activeippacket.h"
+#include "testnetworkobject.h"
+#include "clientgroupnetworkobject.h"
+#include "networkobject.h"
+#include "networkobjectmanager.h"
 #include "misc.h"
 #include "crypto/rsa.h"
 #include <iostream>
@@ -54,7 +58,11 @@ Network::Network(System *system)
     this->dnp_file = system->getDnpFile();
     this->system = system;
     this->offset = time(NULL);
-    createTestNetworkObject();
+    this->object_manager = std::make_unique<NetworkObjectManager>();
+
+    // Let's register some generic network objects that are used and held throughout the entire network
+    this->object_manager->registerNetworkObject(std::make_unique<TestNetworkObject>(this));
+    this->object_manager->registerNetworkObject(std::make_unique<ClientGroupNetworkObject>(this));
 }
 
 Network::~Network()
@@ -197,20 +205,6 @@ struct Packet Network::createPacket(PACKET_TYPE type)
     return packet;
 }
 
-void Network::createTestNetworkObject()
-{
-    struct TestNetworkObject obj;
-    this->initNetworkObject((struct NetworkObject *)&obj);
-    //  this->publishNetworkObject((struct NetworkObject*) &obj);
-}
-
-void Network::initNetworkObject(struct NetworkObject *obj)
-{
-    memset(obj, 0, sizeof(struct NetworkObject));
-    obj->created = time(NULL);
-    obj->id = getRandomIdUsingDefaultOffset();
-}
-
 void Network::sendHelloPacket(std::string to)
 {
     // We should not send a hello packet if we they have already responded to a hello packet
@@ -248,6 +242,63 @@ void Network::bindMyself()
         is_binded = true;
     }
     binded_cv.notify_all();
+}
+
+void Network::sendObject(std::string ip, const char *buf, size_t size, NetworkObject *obj)
+{
+
+    Packet packet = this->createPacket(PACKET_TYPE_OBJECT_PUBLISH);
+    struct NetworkObjectPacket *npacket = &packet.network_object_packet;
+    struct _NetworkObject *nobject = &npacket->obj;
+    // Copy payload to network packet
+    memcpy(&nobject->data.buf, buf, size);
+
+    std::string encrypted_data_hash = obj->getEncryptedDataHash();
+    std::string private_key = obj->getPrivateKey();
+
+    if (encrypted_data_hash.empty() && private_key.empty())
+    {
+        throw DnpException(DNP_EXCEPTION_PRIVATE_KEY_FAILURE, "Expecting a private key to be provided, or an existing encrypted data hash!");
+    }
+
+    std::string buf_str = std::string(nobject->data.buf, sizeof(nobject->data.buf));
+
+    // Let's sign this data using our private key
+    if (encrypted_data_hash.empty())
+    {
+        encrypted_data_hash = Rsa::makeEncryptedHash(buf_str, private_key, npacket->obj.data.ehash);
+    }
+
+
+    // Let's set the encrypted data hash in this object
+    obj->setEncryptedDataHash(encrypted_data_hash);
+
+    nobject->created = time(NULL);
+    std::string id = obj->getId();
+    if (id.empty())
+    {
+        throw DnpException(DNP_EXCEPTION_UNKNOWN, "Attempting to send a network object without an id. Did you forget to call generateId()");
+    }
+
+    std::string type = obj->getType();
+    if (type.size() >= sizeof(nobject->type))
+    {
+        throw DnpException(DNP_EXCEPTION_UNKNOWN, "Size of type exceeds buffer");
+    }
+
+    if (id.size() != sizeof(nobject->id))
+    {
+        throw DnpException(DNP_EXCEPTION_UNKNOWN, "Size of id too small");
+    }
+
+    memcpy(nobject->id, id.c_str(), DNP_ID_SIZE);
+    memcpy(nobject->type, type.c_str(), type.size());
+    nobject->type_len = type.size();
+
+    std::string public_key = obj->getPublicKey();
+    memcpy(nobject->public_key, public_key.c_str(), public_key.size());
+
+    sendPacket(ip, &packet);
 }
 
 void Network::sendPacket(std::string ip, struct Packet *packet)
@@ -325,34 +376,43 @@ void Network::markPacketHandled(struct Packet *packet)
     this->handled_packets.push_back(packet->id);
 }
 
-std::unique_ptr<NetworkPacket> Network::resurrect(struct Packet* packet)
+NetworkObjectManager *Network::getObjectManager()
+{
+    return this->object_manager.get();
+}
+
+std::unique_ptr<NetworkPacket> Network::resurrect(struct Packet *packet)
 {
     std::unique_ptr<NetworkPacket> npacket = nullptr;
 
-    switch(packet->type)
+    switch (packet->type)
     {
-        case PACKET_TYPE_INITIAL_HELLO:
-            npacket = HelloPacket::resurrect(this, packet);
+    case PACKET_TYPE_INITIAL_HELLO:
+        npacket = HelloPacket::resurrect(this, packet);
         break;
 
-        case PACKET_TYPE_RESPOND_HELLO:
-            npacket = HelloRespondPacket::resurrect(this, packet);
+    case PACKET_TYPE_RESPOND_HELLO:
+        npacket = HelloRespondPacket::resurrect(this, packet);
         break;
 
-        case PACKET_TYPE_DATAGRAM:
-            npacket = DnpDatagramPacket::resurrect(this, packet);
+    case PACKET_TYPE_DATAGRAM:
+        npacket = DnpDatagramPacket::resurrect(this, packet);
         break;
 
-        case PACKET_TYPE_ACTIVE_IP:
-            npacket = ActiveIpPacket::resurrect(this, packet);
+    case PACKET_TYPE_ACTIVE_IP:
+        npacket = ActiveIpPacket::resurrect(this, packet);
         break;
-        
-        case PACKET_TYPE_PING:
-            npacket = PingPacket::resurrect(this, packet);
+
+    case PACKET_TYPE_PING:
+        npacket = PingPacket::resurrect(this, packet);
         break;
-        
-        default:
-            throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "Unsupported packet type: " + std::to_string(packet->type) + " cannot resurrect" );
+
+    case PACKET_TYPE_OBJECT_PUBLISH:
+        npacket = NetworkObject::resurrect(this, packet);
+        break;
+
+    default:
+        throw DnpException(DNP_EXCEPTION_UNSUPPORTED, "Unsupported packet type: " + std::to_string(packet->type) + " cannot resurrect");
     }
 
     return npacket;
@@ -372,23 +432,23 @@ void Network::handleIncomingPacket(struct sockaddr_in client_address, struct Pac
         switch (packet->type)
         {
         case PACKET_TYPE_INITIAL_HELLO:
-            handleInitalHelloPacket(client_address, static_cast<HelloPacket*>(npacket.get()));
+            handleInitalHelloPacket(client_address, static_cast<HelloPacket *>(npacket.get()));
             break;
 
         case PACKET_TYPE_RESPOND_HELLO:
-            handleHelloRespondPacket(client_address, static_cast<HelloRespondPacket*>(npacket.get()));
+            handleHelloRespondPacket(client_address, static_cast<HelloRespondPacket *>(npacket.get()));
             break;
 
         case PACKET_TYPE_ACTIVE_IP:
-            handleActiveIpPacket(client_address, static_cast<ActiveIpPacket*>(npacket.get()));
+            handleActiveIpPacket(client_address, static_cast<ActiveIpPacket *>(npacket.get()));
             break;
 
         case PACKET_TYPE_DATAGRAM:
-            handleDatagramPacket(client_address, static_cast<DnpDatagramPacket*>(npacket.get()));
+            handleDatagramPacket(client_address, static_cast<DnpDatagramPacket *>(npacket.get()));
             break;
 
         case PACKET_TYPE_OBJECT_PUBLISH:
-            handleNetworkObjectPublishPacket(client_address, packet);
+            handle_NetworkObjectPublishPacket(client_address, packet);
             break;
         case PACKET_TYPE_PING:
             // Do nothing ping recieved used to keep nat open
@@ -463,7 +523,7 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Dnp
     DnpAddress receiver_address = packet->getToAddress();
 
     std::string sender_address_str = std::string(sender_address.address, sizeof(sender_address.address));
-    std::string receiver_address_str =  std::string(receiver_address.address, sizeof(receiver_address.address));
+    std::string receiver_address_str = std::string(receiver_address.address, sizeof(receiver_address.address));
 
     // If we are not a private key holder then we should not send this packet to the kernel
     if (!this->dnp_file->isPrivateKeyHolder(receiver_address_str))
@@ -513,10 +573,6 @@ void Network::handleDatagramPacket(struct sockaddr_in client_address, struct Dnp
     std::cout << "Handle datagram packet success" << std::endl;
 }
 
-void Network::handleNetworkObjectPublishPacket(struct sockaddr_in client_address, struct Packet *packet)
+void Network::handle_NetworkObjectPublishPacket(struct sockaddr_in client_address, struct Packet *packet)
 {
-    struct NetworkObject *obj = &packet->network_object_packet.obj;
-    std::unique_ptr<char[]> ptr = std::unique_ptr<char[]>(new char[obj->size]);
-    memcpy(ptr.get(), obj, obj->size);
-    this->network_objects.push_back(std::move(ptr));
 }

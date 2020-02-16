@@ -110,13 +110,14 @@ std::string Rsa::makeEncryptedHash(const std::string &input, const std::string &
     return encrypted_data_hash;
 }
 
-void Rsa::makeEncryptedHash(const std::string& input, const std::string& private_key, struct DnpEncryptedHash& out_hash)
+std::string Rsa::makeEncryptedHash(const std::string& input, const std::string& private_key, struct DnpEncryptedHash& out_hash)
 {
     std::string result = makeEncryptedHash(input, private_key);
     if(result.size() > sizeof(out_hash.hash))
         throw std::logic_error("Problem the hash generated is bigger than it can hold attempting to copy would cause program crash");
     memcpy(out_hash.hash, result.c_str(), result.size());
     out_hash.size = result.size();
+    return result;
 }
 
 struct rsa_keypair Rsa::generateKeypair()

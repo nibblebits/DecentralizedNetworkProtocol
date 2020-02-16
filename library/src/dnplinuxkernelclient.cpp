@@ -216,7 +216,6 @@ void DnpLinuxKernelClient::send_datagram_then_respond_impl(struct dnp_kernel_pac
     }
 
     // send the packet to the decentralized network
-
     std::unique_ptr<DnpDatagramPacket> datagram = this->system->getNetwork()->newPacket<DnpDatagramPacket>();
     datagram->setToAddress(std::string(packet.datagram_packet.send_to.address, sizeof(packet.datagram_packet.send_to.address)),
                            packet.datagram_packet.send_to.port);

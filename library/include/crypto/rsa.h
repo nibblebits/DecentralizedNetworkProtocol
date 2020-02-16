@@ -52,7 +52,7 @@ public:
     static void decrypt_public(const std::string &pub_key, const std::string &input, std::string &out);
     static void encrypt_private(const std::string &pri_key, const std::string &input, std::string &out);
     static std::string makeEncryptedHash(const std::string& input, const std::string& private_key);
-    static void makeEncryptedHash(const std::string& input, const std::string& private_key, struct DnpEncryptedHash& out_hash);
+    static std::string makeEncryptedHash(const std::string& input, const std::string& private_key, struct DnpEncryptedHash& out_hash);
     static struct rsa_keypair generateKeypair();
     
 };
