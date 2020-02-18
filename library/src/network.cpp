@@ -54,7 +54,6 @@ Network::Network()
 Network::Network(System *system)
 {
     this->is_binded = false;
-    this->our_ip = "unknown ip";
     this->dnp_file = system->getDnpFile();
     this->system = system;
     this->offset = time(NULL);
@@ -468,6 +467,8 @@ void Network::handleInitalHelloPacket(struct sockaddr_in client_address, HelloPa
 {
     // The hello packet has told us our IP address let's get it
     this->our_ip = packet->getTheirIp();
+
+    std::cout << "Our ip=" << this->our_ip.toString() << std::endl;
 
     // Let's get the real IP address of the person who sent this packet to us.
     char client_ip[INET_ADDRSTRLEN];

@@ -3,6 +3,7 @@
 
 #include "networkpacket.h"
 #include "network.h"
+#include "ipv4address.h"
 
 #include <string>
 #include <memory>
@@ -17,12 +18,12 @@ public:
      * Used to set the ip field so that when we sent this hello packet
      * the receiver will know his ip address
      */
-    void setTheirIp(std::string ip);
+    void setTheirIp(Ipv4Address ip);
     /**
      * Returns the field "their_ip" if you call this after resurrecting a received packet then this is your IP address.
      * As the original crafter of this packet called setTheirIp and passed in your ip address before sending this packet to you
      */
-    std::string getTheirIp();
+    Ipv4Address getTheirIp();
 
     /**
      * Input is a raw network packet that should have a type of PACKET_TYPE_INITIAL_HELLO
@@ -32,7 +33,7 @@ public:
     virtual void send(std::string ip);
 
 private:
-    std::string their_ip;
+    Ipv4Address their_ip;
 };
 }; // namespace Dnp
 

@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "types.h"
 #include "crypto/rsa.h"
 #include "dnpmodshared.h"
+#include "ipv4address.h"
 #include <string>
 #include <list>
 #include <thread>
@@ -66,9 +67,9 @@ enum
 
 struct _HelloPacket
 {
-    // The IP Of the person we are connecting to. Let them know who they are
-    char your_ip[INET_ADDRSTRLEN];
-    unsigned short your_ip_len;
+    // The IP of the person we are connecting to. Let them know who they are
+    struct in_addr ip;
+
 };
 
 /*
@@ -216,8 +217,8 @@ private:
     bool is_binded;
     int our_socket;
     struct sockaddr_in our_address;
-    // Our remote ip address, blank until we receive a hello packet
-    std::string our_ip;
+    // Our remote ip address
+    Ipv4Address our_ip;
 
     // Our DNP file where we will be storing data to
     DnpFile *dnp_file;
